@@ -7,8 +7,17 @@ package com.markusfeng.logicgame;
  */
 public final class Card {
 	
+	public static final int HEARTS = 0;
+	public static final int DIAMONDS = 13;
+	public static final int SPADES = 26;
+	public static final int CLUBS = 39;
+	
 	private Card(){
 		
+	}
+	
+	public static String shortString(int val){
+		return String.valueOf(getShortSuit(val)) + getShortNumber(val);
 	}
 	
 	public static String longString(int val){
@@ -28,13 +37,13 @@ public final class Card {
 	public static String getNumberString(int val){
 		int number = getNumber(val);
 		if(number > 15 || number < 0){
-			throw new IllegalStateException("Invalid number");
+			throw new IllegalArgumentException("Invalid number");
 		}
 		if(getSuit(val) == "Jokers"){
 			switch(val){
-				case 15: return "Red";
-				case 14: return "Black";
-				default: throw new IllegalStateException("Invalid number");
+				case 15: return "Black";
+				case 14: return "Red";
+				default: throw new IllegalArgumentException("Invalid number");
 			}
 		}
 		else{
@@ -52,7 +61,7 @@ public final class Card {
 	public static char getShortNumber(int val){
 		int num = getNumber(val);
 		if(num < 0){
-			throw new IllegalStateException("Invalid number");
+			throw new IllegalArgumentException("Invalid number");
 		}
 		if(num == 0){
 			return 'N';
@@ -68,9 +77,21 @@ public final class Card {
 			case 11: return 'J';
 			case 12: return 'Q';
 			case 13: return 'K';
-			case 14: return 'B';
-			case 15: return 'R';
-			default: throw new IllegalStateException("Invalid number");
+			case 14: return 'R';
+			case 15: return 'B';
+			default: throw new IllegalArgumentException("Invalid number");
+		}
+	}
+	
+	public static String getColor(int val){
+		switch(getSuit(val)){
+		case "Spades": return "Black";
+		case "Hearts": return "Red";
+		case "Clubs": return "Black";
+		case "Diamonds": return "Red";
+		case "Jokers": return getNumberString(val);
+		case "None": return "None";
+		default: throw new IllegalArgumentException("Invalid suit");
 		}
 	}
 	
@@ -82,13 +103,13 @@ public final class Card {
 			case "Diamonds": return 'D';
 			case "Jokers": return 'X';
 			case "None": return 'N';
-			default: return '_';
+			default: throw new IllegalArgumentException("Invalid suit");
 		}
 	}
 	
 	public static int getNumber(int val){
 		if(val > 54 || val < 0){
-			throw new IllegalStateException("Invalid number");
+			throw new IllegalArgumentException("Invalid number");
 		}
 		switch(val){
 			case 54: return 15;
@@ -100,18 +121,18 @@ public final class Card {
 	
 	public static String getSuit(int val){
 		if(val > 54 || val < 0){
-			throw new IllegalStateException("Invalid suit");
+			throw new IllegalArgumentException("Invalid suit");
 		}
 		switch(val){
 			case 54: return "Jokers";
 			case 53: return "Jokers";
 			case 0: return "None";
 			default: switch((val - 1) / 13){
-				case 0: return "Diamonds";
-				case 1: return "Clubs";
-				case 2: return "Hearts";
-				case 3: return "Spades";
-				default: throw new IllegalStateException("Invalid suit");
+				case 0: return "Hearts";
+				case 1: return "Diamonds";
+				case 2: return "Spades";
+				case 3: return "Clubs";
+				default: throw new IllegalArgumentException("Invalid suit");
 			}
 		}
 	};
