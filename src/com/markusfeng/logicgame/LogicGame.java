@@ -78,12 +78,26 @@ public class LogicGame extends BasicGame{
 		//Shuffle cards
 		Collections.shuffle(cardList);
 		cardList.forEach(x -> System.out.println(x + ": " + Card.longString(x)));
+		//Sort the dealt cards in ascending order
+		//Ties are broken randomly
+		sortDealtCards(cardList);
 		//Add cards to card array
 		int i = 0;
 		for(int n : cardList){
 			cards[i] = n;
 			i++;
 		}
+	}
+	
+	void sortDealtCards(List<Integer> cards){
+		List<Integer> sorted = new ArrayList<Integer>();
+		for(int i = 0; i < players; i++){
+			List<Integer> sub = new ArrayList<Integer>(cards.subList(i * cardsPerPlayer, (i + 1) * cardsPerPlayer));
+			sub.sort((x, y) -> Integer.compare(Card.getNumber(x), Card.getNumber(y)));
+			sorted.addAll(sub);
+		}
+		cards.clear();
+		cards.addAll(sorted);
 	}
 
 	@Override

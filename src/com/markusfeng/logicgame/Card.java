@@ -40,14 +40,14 @@ public final class Card {
 			throw new IllegalArgumentException("Invalid number");
 		}
 		if(getSuit(val) == "Jokers"){
-			switch(val){
+			switch(number){
 				case 15: return "Black";
 				case 14: return "Red";
 				default: throw new IllegalArgumentException("Invalid number");
 			}
 		}
 		else{
-			switch(val){
+			switch(number){
 				case 0: return "None";
 				case 1: return "Ace";
 				case 11: return "Jack";
