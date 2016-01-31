@@ -9,8 +9,11 @@ import org.newdawn.slick.BasicGame;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Graphics;
 import org.newdawn.slick.Image;
+import org.newdawn.slick.Input;
+import org.newdawn.slick.MouseListener;
 import org.newdawn.slick.SlickException;
 import org.newdawn.slick.SpriteSheet;
+import org.newdawn.slick.util.InputAdapter;
 import org.newdawn.slick.Color;
 
 /**
@@ -30,7 +33,8 @@ public class LogicGame extends BasicGame{
 	//No security model -> give everyone all information about cards
 	int[] cards = new int[players * cardsPerPlayer];
 	//Index matches with cards
-	boolean[] faceDown = new boolean[players * cardsPerPlayer];
+	boolean[] faceDown = new boolean[cards.length];
+	CollisionRect[] rects = new CollisionRect[cards.length];
 	
 	int cardWidth = 90;
 	int cardHeight = 120;
@@ -149,6 +153,16 @@ public class LogicGame extends BasicGame{
 	
 	void renderCard(GameContainer gc, Graphics g, int currentIndex, 
 			int x, int y, float transform){
+		//Makes a collision rectangle for the card to check for clicks
+		CollisionRect rect = new CollisionRect(x, y, cardWidth, cardHeight);
+		if((int)(Math.round(transform / 90)) % 2 == 0){
+			//Adds the collision rectangle to the array
+			rects[currentIndex] = rect;
+		}
+		else{
+			//If the card is rotated, make sure to rotate the collision rectangle
+			rects[currentIndex] = rect.rotatedCopy();
+		}
 		int currentCard = cards[currentIndex];
 		//Rotates the rendering system to make cards rotated
 		g.rotate(x + cardWidth/2, y + cardHeight/2, transform);
@@ -166,6 +180,18 @@ public class LogicGame extends BasicGame{
 	@Override
 	public void update(GameContainer gc, int delta) throws SlickException {
 		
+	}
+	
+	@Override
+	public void mouseClicked(int button, int x, int y, int buttonCount) {
+		//Go through the card collision rectangles
+		for(int i = 0; i < rects.length; i++){
+			//If the collision rectangle collides with the clicked point
+			if(rects[i].collidesWithPoint(x, y)){
+				//Changes the card to be face up and face down, or vice versa
+				faceDown[i] = !faceDown[i];
+			}
+		}
 	}
 	
 	public Image getCardFromSheet(int card){
