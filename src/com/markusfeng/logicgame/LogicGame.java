@@ -6,15 +6,12 @@ import java.util.List;
 
 import org.newdawn.slick.AppGameContainer;
 import org.newdawn.slick.BasicGame;
+import org.newdawn.slick.Color;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Graphics;
 import org.newdawn.slick.Image;
-import org.newdawn.slick.Input;
-import org.newdawn.slick.MouseListener;
 import org.newdawn.slick.SlickException;
 import org.newdawn.slick.SpriteSheet;
-import org.newdawn.slick.util.InputAdapter;
-import org.newdawn.slick.Color;
 
 /**
  * The engine driving the logic game
@@ -33,7 +30,7 @@ public class LogicGame extends BasicGame{
 	//No security model -> give everyone all information about cards
 	int[] cards = new int[players * cardsPerPlayer];
 	//Index matches with cards
-	boolean[] faceDown = new boolean[cards.length];
+	boolean[] faceUp = new boolean[cards.length];
 	CollisionRect[] rects = new CollisionRect[cards.length];
 	
 	int cardWidth = 90;
@@ -60,28 +57,30 @@ public class LogicGame extends BasicGame{
 	public void init(GameContainer gc) throws SlickException {
 		//Creates the card sheets
 		sheet = new SpriteSheet(new Image("assets/poker_120.png"), cardWidth, cardHeight);
-		//Deals the cards out
-		dealCards();
+		//Generates the cards (shuffling them), then deals the cards out
+		dealCards(generateCards());
 	}
 	
-	void dealCards(){
+	//Returns a list of cards to be used in the Logic game
+	List<Integer> generateCards(){
 		List<Integer> cardList = new ArrayList<Integer>();
 		//Add necessary logic cards
 		//Ace to Queen of Hearts and Spades (by default)
 		for(int i = 0; i < cardsPerPlayer * players / 2; i++){
 			cardList.add(Card.HEARTS + i + 1);
 			cardList.add(Card.SPADES + i + 1);
-			//Randomly sets the cards to face down
-			if(Math.random() > 0.5){
-				faceDown[i] = true;
-			}
-			if(Math.random() > 0.5){
-				faceDown[i + cardsPerPlayer * players / 2] = true;
-			}
+		}
+		for(int i = 0; i < cardsPerPlayer; i++){
+			//Sets the cards of this player to be face up
+			faceUp[i] = true;
 		}
 		//Shuffle cards
 		Collections.shuffle(cardList);
 		cardList.forEach(x -> System.out.println(x + ": " + Card.longString(x)));
+		return cardList;
+	}
+	
+	void dealCards(List<Integer> cardList){
 		//Sort the dealt cards in ascending order
 		//Ties are broken randomly
 		sortDealtCards(cardList);
@@ -153,21 +152,24 @@ public class LogicGame extends BasicGame{
 	
 	void renderCard(GameContainer gc, Graphics g, int currentIndex, 
 			int x, int y, float transform){
-		//Makes a collision rectangle for the card to check for clicks
-		CollisionRect rect = new CollisionRect(x, y, cardWidth, cardHeight);
-		if((int)(Math.round(transform / 90)) % 2 == 0){
-			//Adds the collision rectangle to the array
-			rects[currentIndex] = rect;
-		}
-		else{
-			//If the card is rotated, make sure to rotate the collision rectangle
-			rects[currentIndex] = rect.rotatedCopy();
+		//Save performance by only setting the collision rectangle if it doesn't already exist
+		if(rects[currentIndex] == null){
+			//Makes a collision rectangle for the card to check for clicks
+			CollisionRect rect = new CollisionRect(x, y, cardWidth, cardHeight);
+			if((int)(Math.round(transform / 90)) % 2 == 0){
+				//Adds the collision rectangle to the array
+				rects[currentIndex] = rect;
+			}
+			else{
+				//If the card is rotated, make sure to rotate the collision rectangle
+				rects[currentIndex] = rect.rotatedCopy();
+			}
 		}
 		int currentCard = cards[currentIndex];
 		//Rotates the rendering system to make cards rotated
 		g.rotate(x + cardWidth/2, y + cardHeight/2, transform);
 		//Renders face down or face up card based on whether the face down variable is set to true
-		if(faceDown[currentIndex]){
+		if(!faceUp[currentIndex]){
 			g.drawImage(getBackFromSheet(Card.getColor(currentCard).equals("Red") ? 0 : 3), x, y);
 		}
 		else{
@@ -189,7 +191,7 @@ public class LogicGame extends BasicGame{
 			//If the collision rectangle collides with the clicked point
 			if(rects[i].collidesWithPoint(x, y)){
 				//Changes the card to be face up and face down, or vice versa
-				faceDown[i] = !faceDown[i];
+				faceUp[i] = !faceUp[i];
 			}
 		}
 	}
