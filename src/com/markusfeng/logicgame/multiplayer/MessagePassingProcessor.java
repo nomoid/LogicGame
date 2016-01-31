@@ -181,4 +181,9 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 	public MessagePassingProcessor get() {
 		return this;
 	}
+
+	@Override
+	protected boolean permission(long requester, String permission) {
+		return true;
+	}
 }

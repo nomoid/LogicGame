@@ -49,7 +49,8 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 		super.attachHandler(handler);
 		if(isServer){
 			long randTmp = random.nextLong();
-			while(ids.containsKey(randTmp)){
+			//Disallow 0 as id or repeated ids
+			while(randTmp == 0 || ids.containsKey(randTmp)){
 				randTmp = random.nextLong();
 			}
 			final long rand = randTmp;
@@ -159,40 +160,98 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 		outputToHandler(handler, out.toString(), blocking);
 	}
 
+	/*
+	 * Commands:
+	 * 
+	 * initialize: sent by server to client upon connection
+	 *   targetid (id): assigns the client's id to targetid
+	 * getpermission: asks if the current system as permission
+	 *   permission (string): the name of the permission to get
+	 * 
+	 * Arguments:
+	 * 
+	 * id (id): the id of the original sender
+	 * recipients (recipients): sends message only to recipients with the ids specified, separated by /
+	 * serveronly (no args): sends message to server only (superseded by recipients)
+	 * 
+	 * Permissions:
+	 * recipients (server): allows the client to use the recipient argument
+	 * serveronly (server): allows the client to use the serveronly argument
+	 * getpermission (server): allows the client to use the getpermission command
+	 * 
+	 */
 	@Override
 	public void input(String in) {
 		Command command = Commands.parseCommand(in);
 		if(isServer){
-			String recipient = command.getArguments().get("recipient");
-			if(recipient != null){
-				try {
-					outputToHandler(ids.get(recipient), command, false);
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+			long sender;
+			try{
+				sender = Long.parseLong(command.getArguments().get("id"));
 			}
-			else if(!command.getArguments().containsKey("serveronly")){
-				for(Entry<Long, SocketHandler<String>> handler : ids.entrySet()){
-					String id = command.getArguments().get("id");
-					if(id == null || handler.getKey() != Long.parseLong(id)){
+			catch(NumberFormatException e){
+				sender = 0;
+			}
+			//Argument handling  
+			String recipients = command.getArguments().get("recipients");
+			if(permission(sender, "recipients") && recipients != null){
+				String[] recipientArray = recipients.split("/");
+				boolean forward = false;
+				for(String recipient : recipientArray){
+					if(recipient.equals(String.valueOf(id))){
+						forward = true;
+					}
+					else{
 						try {
-							outputToHandler(handler.getValue(), command, false);
+							outputToHandler(ids.get(Long.parseLong(recipient)), command, false);
 						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (NumberFormatException e){
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
 					}
 				}
+				if(!forward){
+					return;
+				}
 			}
+			else if(permission(sender, "serveronly") && !command.getArguments().containsKey("serveronly")){
+				for(Entry<Long, SocketHandler<String>> handler : ids.entrySet()){
+					String id = command.getArguments().get("id");
+					try {
+						if(id == null || handler.getKey() != Long.parseLong(id)){
+							outputToHandler(handler.getValue(), command, false);
+						}
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (NumberFormatException e){
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			}
+			//Command handling
+			//TODO implement complete command handling system
 		}
 		else{
 			if(command.getName().equalsIgnoreCase("initialize")){
-				serverID = Long.parseLong(command.getArguments().get("id"));
-				id = Long.parseLong(command.getArguments().get("targetid"));
-				synchronized(assignmentLock){
-					assigned = true;
-					assignmentLock.notifyAll();
+				try {
+					serverID = Long.parseLong(command.getArguments().get("id"));
+				} catch (NumberFormatException e){
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				try {
+					id = Long.parseLong(command.getArguments().get("targetid"));
+					synchronized(assignmentLock){
+						assigned = true;
+						assignmentLock.notifyAll();
+					}
+				} catch (NumberFormatException e){
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 			}
 		}
@@ -241,6 +300,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	protected abstract Map<String, String> handlerAdded(Future<Long> addedID, SocketHandler<String> handler);
 	protected abstract void handlerRemoved(long removedID, SocketHandler<String> handler);
 	protected abstract void process(Command command);
+	protected abstract boolean permission(long requester, String permission);
 	
 	@Override
 	public void close(){
