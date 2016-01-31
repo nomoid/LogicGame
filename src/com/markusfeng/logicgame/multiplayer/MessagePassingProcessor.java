@@ -8,6 +8,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import com.markusfeng.SocketRelay.A.SocketClient;
 import com.markusfeng.SocketRelay.A.SocketHandler;
@@ -34,7 +36,6 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 			@SuppressWarnings("unused")
 			final MessagePassingProcessor server = startServer(port);
 			final MessagePassingProcessor client = startClient(new String[]{""}, port);
-			@SuppressWarnings("unused")
 			final MessagePassingProcessor client2 = startClient(new String[]{""}, port);
 			new Thread(new Runnable(){
 				
@@ -42,8 +43,31 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 				public void run() {
 					try {
 						while(!done){
+							client.waitForID();
 							client.output(Commands.make("ping", Collections.singletonMap("value", String.valueOf(random.nextLong()))), false);
 							Thread.sleep(1000);
+						}
+					} catch (Exception e){
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				
+			}).start();
+			new Thread(new Runnable(){
+				
+				@Override
+				public void run() {
+					try {
+						while(!done){
+							Object lock = client2.getAssignmentLock();
+							synchronized(lock){
+								while(!client2.idAssigned()){
+									lock.wait();
+								}
+							}
+							client2.output(Commands.make("pong", Collections.singletonMap("value", String.valueOf(random.nextLong()))), false);
+							Thread.sleep(2500);
 						}
 					} catch (Exception e){
 						// TODO Auto-generated catch block
@@ -82,7 +106,6 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 			SocketServer<SocketHandler<String>> server =
 					SocketHelper.getStringServer(port, mp);
 			closeables.add(server);
-			closeables.add(mp);
 			server.open();
 		}
 		catch(NumberFormatException e){
@@ -105,7 +128,6 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 			SocketClient<SocketHandler<String>> client =
 					SocketHelper.getStringClient(host, port, mp);
 			closeables.add(client);
-			closeables.add(mp);
 			client.open();
 		}
 		catch(NumberFormatException e){
@@ -124,19 +146,35 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 	}
 
 	@Override
-	protected Map<String, String> handlerAdded(long id, SocketHandler<String> handler) {
-		System.out.println(id + ": Handler added with id: " + id);
+	protected Map<String, String> handlerAdded(Future<Long> addedID, SocketHandler<String> handler) {
+		tpe.execute(new Runnable(){
+			
+			@Override
+			public void run(){
+				try {
+					long added = addedID.get();
+					System.out.println(getID() + ": Handler added with id: " + added);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+		});
 		return new HashMap<String, String>();
 	}
 
 	@Override
-	protected void handlerRemoved(long id, SocketHandler<String> handler) {
-		System.out.println(id + ": Handler removed with id: " + id);
+	protected void handlerRemoved(long addedID, SocketHandler<String> handler) {
+		System.out.println(getID() + ": Handler removed with id: " + addedID);
 	}
 	
 	@Override
 	protected void process(Command command) {
-		System.out.println(id + ": Command recieved: " + command.getName() + " with arguments:" + command.getArguments());
+		System.out.println(getID() + ": Command recieved: " + command.getName() + " with arguments:" + command.getArguments());
 	}
 
 	@Override

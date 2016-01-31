@@ -9,33 +9,58 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 
 import com.markusfeng.SocketRelay.A.SocketHandler;
 import com.markusfeng.SocketRelay.C.SocketProcessorAbstract;
 
 public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	
+	protected Object assignmentLock = new Object();
 	protected Random random;
 	protected boolean isServer;
 	protected Map<Long, SocketHandler<String>> ids;
-	protected long id;
+	protected long serverID;
+	protected volatile long id;
+	protected volatile boolean assigned;
+	public static final Runnable EMPTY_RUNNABLE = new Runnable(){
+
+		@Override
+		public void run() {
+			//Do nothing
+		}
+		
+	};
 	
 	public GroupProcessor(boolean isServer){
 		this.isServer = isServer;
 		random = new Random();
+		
+		if(isServer){
+			id = random.nextLong();
+			assigned = true;
+		}
 		ids = new HashMap<Long, SocketHandler<String>>();
-		id = random.nextLong();
 	}
 	
 	@Override
 	public void attachHandler(SocketHandler<String> handler){
 		super.attachHandler(handler);
 		if(isServer){
-			long rand = random.nextLong();
-			while(ids.containsKey(rand)){
-				rand = random.nextLong();
+			long randTmp = random.nextLong();
+			while(ids.containsKey(randTmp)){
+				randTmp = random.nextLong();
 			}
-			Map<String, String> map = handlerAdded(rand, handler);
+			final long rand = randTmp;
+			Map<String, String> map = handlerAdded(tpe.submit(new Callable<Long>(){
+
+				@Override
+				public Long call() throws Exception {
+					return rand;
+				}
+				
+			}), handler);
 			map.put("targetid", String.valueOf(rand));
 			ids.put(rand, handler);
 			Command gameOver = Commands.make("initialize", map);
@@ -47,26 +72,42 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 				e.printStackTrace();
 			}
 		}
+		else{
+			handlerAdded(tpe.submit(new Callable<Long>(){
+				
+				@Override
+				public Long call(){
+					waitForID();
+					return getServerID();
+				}
+				
+			}), handler);
+		}
 	}
 	
 	@Override
 	public void removeHandler(SocketHandler<String> handler){
 		super.removeHandler(handler);
-		if(handler == null){
-			return;
-		}
-		boolean targetFound = false;
-		long targetID = 0;
-		for(Map.Entry<Long, SocketHandler<String>> entry : ids.entrySet()){
-			if(entry.getValue().equals(handler)){
-				targetID = entry.getKey();
-				targetFound = true;
-				break;
+		if(isServer){
+			if(handler == null){
+				return;
+			}
+			boolean targetFound = false;
+			long targetID = 0;
+			for(Map.Entry<Long, SocketHandler<String>> entry : ids.entrySet()){
+				if(entry.getValue().equals(handler)){
+					targetID = entry.getKey();
+					targetFound = true;
+					break;
+				}
+			}
+			if(targetFound){
+				ids.remove(targetID);
+				handlerRemoved(targetID, handler);
 			}
 		}
-		if(targetFound){
-			ids.remove(targetID);
-			handlerRemoved(targetID, handler);
+		else{
+			handlerRemoved(getServerID(), handler);
 		}
 	}
 
@@ -80,15 +121,22 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	@Override
 	public void removeHandlers(Collection<SocketHandler<String>> handlers){
 		super.removeHandlers(handlers);
-		Set<Long> toBeRemoved = new HashSet<Long>();
-		for(Map.Entry<Long, SocketHandler<String>> entry : ids.entrySet()){
-			if(handlers.contains(entry.getValue())){
-				toBeRemoved.add(entry.getKey());
+		if(isServer){
+			Set<Long> toBeRemoved = new HashSet<Long>();
+			for(Map.Entry<Long, SocketHandler<String>> entry : ids.entrySet()){
+				if(handlers.contains(entry.getValue())){
+					toBeRemoved.add(entry.getKey());
+				}
+			}
+			for(long l : toBeRemoved){
+				SocketHandler<String> handler = ids.remove(l);
+				handlerRemoved(l, handler);
 			}
 		}
-		for(long l : toBeRemoved){
-			SocketHandler<String> handler = ids.remove(l);
-			handlerRemoved(l, handler);
+		else{
+			for(SocketHandler<String> handler : handlers){
+				handlerRemoved(getServerID(), handler);
+			}
 		}
 	}
 
@@ -140,7 +188,12 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 		}
 		else{
 			if(command.getName().equalsIgnoreCase("initialize")){
+				serverID = Long.parseLong(command.getArguments().get("id"));
 				id = Long.parseLong(command.getArguments().get("targetid"));
+				synchronized(assignmentLock){
+					assigned = true;
+					assignmentLock.notifyAll();
+				}
 			}
 		}
 		process(command);
@@ -150,8 +203,51 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 		return Collections.unmodifiableMap(ids);
 	}
 	
-	protected abstract Map<String, String> handlerAdded(long id, SocketHandler<String> handler);
-	protected abstract void handlerRemoved(long id, SocketHandler<String> handler);
+	public long getID(){
+		return id;
+	}
+	
+	public long getServerID(){
+		return serverID;
+	}
+	
+	public boolean idAssigned(){
+		synchronized(assignmentLock){
+			return assigned;
+		}
+	}
+	
+	protected Object getAssignmentLock(){
+		return assignmentLock;
+	}
+	
+	public boolean isServer(){
+		return isServer;
+	}
+	
+	protected void waitForID(){
+		synchronized(assignmentLock){
+			while(!idAssigned()){
+				try {
+					assignmentLock.wait();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
+	protected abstract Map<String, String> handlerAdded(Future<Long> addedID, SocketHandler<String> handler);
+	protected abstract void handlerRemoved(long removedID, SocketHandler<String> handler);
 	protected abstract void process(Command command);
+	
+	@Override
+	public void close(){
+		super.close();
+		synchronized(assignmentLock){
+			assignmentLock.notifyAll();
+		}
+	}
 
 }
