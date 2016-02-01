@@ -61,6 +61,8 @@ public class LogicGame extends BasicGame{
 	//TODO Warning -> not closed yet
 	Set<Closeable> closeables;
 	
+	String consoleLine = "";
+	
 	SpriteSheet sheet; 
 
 	public static void main(String[] args) throws SlickException{
@@ -140,7 +142,8 @@ public class LogicGame extends BasicGame{
 	@Override
 	public void render(GameContainer gc, Graphics g) throws SlickException {
 		g.setBackground(new Color(0, 0, 0));
-		g.clear();
+		//g.clear();
+		g.drawString("Console: " + consoleLine, 10, 30);
 		//Try 4 player rendering first
 		//Render counterclockwise from bottom
 		for(int i = 0; i < players; i++){
@@ -239,39 +242,73 @@ public class LogicGame extends BasicGame{
 	protected LogicGameProcessor processor;
 	
 	@Override
-	public void keyReleased(int key, char c){
-		if(key == Input.KEY_1){
-			startServer(DEFAULT_PORT);
+	public void keyPressed(int key, char c){
+		if(key == Input.KEY_DELETE || key == Input.KEY_BACK){
+			if(consoleLine.length() > 0){
+				consoleLine = consoleLine.substring(0, consoleLine.length() - 1);
+			}
 		}
-		else if(key == Input.KEY_2){
-			startClient("localhost", DEFAULT_PORT);
+		else if(key == Input.KEY_ENTER){
+			processConsole(consoleLine);
+			consoleLine = "";
+		}
+		else{
+			consoleLine = consoleLine + c;
 		}
 	}
 	
-	protected void startServer(int port){
-		try {
-			if(processor != null){
+	public void processConsole(String command){
+		try{
+			System.out.println("Running command: " + command);
+			String[] args = command.split(" ");
+			if(args.length == 0){
 				return;
 			}
-			System.out.println("Server started");
-			processor = LogicGameProcessor.startServer(this, port, closeables);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			String name = args[0];
+			if(name.equalsIgnoreCase("/server")){
+				int port = DEFAULT_PORT;
+				if(args.length >= 2){
+					//throws NumberFormatException
+					port = Integer.parseInt(args[1]);
+				}
+				startServer(port);
+			}
+			else if(name.equalsIgnoreCase("/client")){
+				String host = "localhost";
+				int port = DEFAULT_PORT;
+				if(args.length >= 2){
+					host = args[1];
+				}
+				if(args.length >= 3){
+					//throws NumberFormatException
+					port = Integer.parseInt(args[2]);
+				}
+				startClient(host, port);
+			}
+			else{
+				//TODO implement chat?
+				System.out.println("Invalid command: " + command);
+			}
+		}
+		catch(Exception e){
+			System.out.println("Command occured with exception " + e.getMessage());
 		}
 	}
 	
-	protected void startClient(String host, int port){
-		try {
-			if(processor != null){
-				return;
-			}
-			System.out.println("Client started");
-			processor = LogicGameProcessor.startClient(this, host, port, closeables);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+	protected void startServer(int port) throws IOException{
+		if(processor != null){
+			return;
 		}
+		System.out.println("Server started");
+		processor = LogicGameProcessor.startServer(this, port, closeables);
+	}
+	
+	protected void startClient(String host, int port) throws IOException{
+		if(processor != null){
+			return;
+		}
+		System.out.println("Client started");
+		processor = LogicGameProcessor.startClient(this, host, port, closeables);
 	}
 	
 	public Image getCardFromSheet(int card){
