@@ -42,6 +42,7 @@ public class LogicGame extends BasicGame{
 	static final int DEFAULT_WIDTH = 1280;
 	static final int DEFAULT_HEIGHT = 800;
 	
+	int playerNumber = 0;
 	int players = 4;
 	int cardsPerPlayer = 6;
 	//Array for storing all of the values of cards
@@ -95,7 +96,7 @@ public class LogicGame extends BasicGame{
 		}
 		for(int i = 0; i < cardsPerPlayer; i++){
 			//Sets the cards of this player to be face up
-			faceUp[i] = true;
+			faceUp[transpose(i)] = true;
 		}
 		//Shuffle cards
 		Collections.shuffle(cardList);
@@ -147,7 +148,7 @@ public class LogicGame extends BasicGame{
 			float transform = -90;
 			for(int j = 0; j < cardsPerPlayer; j++){
 				//Current index in the cards and faceDown arrays
-				int currentIndex = i * cardsPerPlayer + j;
+				int currentIndex = transpose(i * cardsPerPlayer + j);
 				//Calculate the spacing between each card
 				int spacing = (gc.getHeight() - (cardsPerPlayer) * cardWidth) / 
 						(cardsPerPlayer + sidePadding * 2 - 1);
@@ -289,5 +290,36 @@ public class LogicGame extends BasicGame{
 	
 	public boolean[] getFaceUp(){
 		return faceUp;
+	}
+
+	public void setCardDataRecieved(int[] array, int playerNumber) {
+		this.playerNumber = playerNumber;
+		//System.arraycopy(array, playerNumber * cardsPerPlayer, cards, 0, cards.length - playerNumber * cardsPerPlayer);
+		//System.arraycopy(array, 0, cards, cards.length - playerNumber * cardsPerPlayer, playerNumber * cardsPerPlayer);
+		System.arraycopy(array, 0, cards, 0, cards.length);
+		for(int i = 0; i < rects.length; i++){
+			//Resets the collision rectangles
+			rects[i] = null;
+		}
+		for(int i = 0; i < faceUp.length; i++){
+			faceUp[i] = false;
+		}
+		for(int i = 0; i < cardsPerPlayer; i++){
+			//Sets the cards of this player to be face up
+			faceUp[transpose(i)] = true;
+		}
+	}
+
+	public String flip(int index) {
+		faceUp[index] = !faceUp[index];
+		return "complete";
+	}
+	
+	public int transpose(int index){
+		return (index + playerNumber * cardsPerPlayer) % (players * cardsPerPlayer);
+	}
+	
+	public int untranspose(int index){
+		return (index + players * cardsPerPlayer - playerNumber * cardsPerPlayer) % (players * cardsPerPlayer);
 	}
 }

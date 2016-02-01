@@ -2,9 +2,11 @@ package com.markusfeng.logicgame.multiplayer;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import com.markusfeng.SocketRelay.A.SocketClient;
@@ -18,6 +20,7 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 		implements SocketProcessorGenerator<LogicGameProcessor>{
 	
 	protected LogicGame game;
+	protected ArrayList<Long> players;
 	
 	public static LogicGameProcessor startServer(LogicGame game, int port, Set<Closeable> closeables)
 			throws IOException{
@@ -41,15 +44,18 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 
 	public LogicGameProcessor(LogicGame game, boolean isServer) {
 		super(isServer);
+		players = new ArrayList<Long>();
 		this.game = game;
+		if(isServer){
+			players.add(getID());
+		}
 		addMethod("flip", new RemoteMethod(){
 
 			@Override
 			public String apply(Map<String, String> parameters) {
 				int index = Integer.parseInt(parameters.get("index"));
-				boolean[] faceUp = LogicGameProcessor.this.game.getFaceUp();
-				faceUp[index] = !faceUp[index];
-				return "complete";
+				LogicGame game = LogicGameProcessor.this.game;
+				return game.flip(index);
 			}
 			
 		});
@@ -59,7 +65,21 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 	protected Map<String, String> handlerAdded(Future<Long> addedID, SocketHandler<String> handler) {
 		//Send the cards in the logic game to all clients
 		HashMap<String, String> data = new HashMap<String, String>();
-		data.put("carddata", Commands.fromArray(game.getCards()));
+		if(isServer){
+			data.put("carddata", Commands.fromArray(game.getCards()));
+			synchronized(players){
+				data.put("playernumber", String.valueOf(players.size()));
+				try {
+					players.add(addedID.get());
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (ExecutionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
 		return data;
 	}
 
@@ -73,7 +93,8 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 	protected void process(Command command) {
 		if(command.getName().equalsIgnoreCase("initialize")){
 			int[] array = Commands.toIntArray(command.getArguments().get("carddata"));
-			System.arraycopy(array, 0, game.getCards(), 0, game.getCards().length);
+			int playerNumber = Integer.parseInt(command.getArguments().get("playernumber"));
+			game.setCardDataRecieved(array, playerNumber);
 		}
 	}
 	
