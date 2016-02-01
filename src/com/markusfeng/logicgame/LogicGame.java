@@ -67,6 +67,7 @@ public class LogicGame extends BasicGame{
 		AppGameContainer app = new AppGameContainer(new LogicGame());
 		app.setDisplayMode(DEFAULT_WIDTH, DEFAULT_HEIGHT, false);
 		app.setTargetFrameRate(60);
+		app.setAlwaysRender(true);
 		app.start();
 	}
 	

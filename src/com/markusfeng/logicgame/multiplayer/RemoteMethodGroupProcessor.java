@@ -143,18 +143,37 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 			try{
 				long callerID = Long.parseLong(command.getArguments().get("callerid"));
 				if(callerID == id){
-					long invokeID = Long.parseLong(command.getArguments().get("invokeid"));
-					CompletableFuture<String> future = invocationReturns.get(invokeID).get(sender);
-					if(command.getArguments().get("accessdenied") != null){
-						future.completeExceptionally(new SecurityException("Illegal remove invocation"));
-					}
-					else if(command.getArguments().get("exceptionthrown") != null){
-						future.completeExceptionally(new CompletionException(command.getArguments()
-								.get("exceptionthrown"), null));
-					}
-					else{
-						future.complete(command.getArguments().get("return"));
-					}
+					final long senderC = sender;
+					final Command commandC = command;
+					tpe.execute(new Runnable(){
+
+						@Override
+						public void run() {
+							long invokeID = Long.parseLong(commandC.getArguments().get("invokeid"));
+							try {
+								//Wait until invokedata comes back
+								invocations.get(invokeID).get();
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (ExecutionException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							CompletableFuture<String> future = invocationReturns.get(invokeID).get(senderC);
+							if(commandC.getArguments().get("accessdenied") != null){
+								future.completeExceptionally(new SecurityException("Illegal remove invocation"));
+							}
+							else if(commandC.getArguments().get("exceptionthrown") != null){
+								future.completeExceptionally(new CompletionException(commandC.getArguments()
+										.get("exceptionthrown"), null));
+							}
+							else{
+								future.complete(commandC.getArguments().get("return"));
+							}
+						}
+						
+					});
 				}
 				else if(isServer){
 					//Redirect
