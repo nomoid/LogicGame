@@ -19,6 +19,7 @@ import org.newdawn.slick.Input;
 import org.newdawn.slick.SlickException;
 import org.newdawn.slick.SpriteSheet;
 
+import com.markusfeng.Shared.Version;
 import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
 
 /**
@@ -35,6 +36,7 @@ import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
  * 
  * @author Markus Feng
  */
+@Version(value = "build-1")
 public class LogicGame extends BasicGame{
 	
 	static final int DEFAULT_PORT = 59132;
@@ -144,6 +146,7 @@ public class LogicGame extends BasicGame{
 		g.setBackground(new Color(0, 0, 0));
 		//g.clear();
 		g.drawString("Console: " + consoleLine, 10, 30);
+		g.drawString("Version: " + getVersion(), 10, 50);
 		//Try 4 player rendering first
 		//Render counterclockwise from bottom
 		for(int i = 0; i < players; i++){
@@ -358,5 +361,18 @@ public class LogicGame extends BasicGame{
 	
 	public int untranspose(int index){
 		return (index + players * cardsPerPlayer - playerNumber * cardsPerPlayer) % (players * cardsPerPlayer);
+	}
+	
+	public String getVersion(){
+		Version[] versions = LogicGame.class.getAnnotationsByType(Version.class);
+		if(versions.length != 1){
+			throw new UnsupportedOperationException("No valid version found");
+		}
+		System.out.println(versions[0].value());
+		return versions[0].value();
+	}
+
+	public boolean compatibleVersion(String version){
+		return getVersion().equals(version);
 	}
 }

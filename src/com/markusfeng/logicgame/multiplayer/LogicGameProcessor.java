@@ -66,6 +66,7 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 		//Send the cards in the logic game to all clients
 		HashMap<String, String> data = new HashMap<String, String>();
 		if(isServer){
+			data.put("gameversion", game.getVersion());
 			data.put("carddata", Commands.fromArray(game.getCards()));
 			synchronized(players){
 				data.put("playernumber", String.valueOf(players.size()));
@@ -92,9 +93,15 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 	@Override
 	protected void process(Command command) {
 		if(command.getName().equalsIgnoreCase("initialize")){
+			String version = command.getArguments().get("gameversion");
 			int[] array = Commands.toIntArray(command.getArguments().get("carddata"));
 			int playerNumber = Integer.parseInt(command.getArguments().get("playernumber"));
 			game.setCardDataRecieved(array, playerNumber);
+			if(!game.compatibleVersion(version)){
+				//Shutdown
+				close();
+				throw new IllegalArgumentException("Incompatible version");
+			}
 		}
 	}
 	
@@ -102,5 +109,4 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 	public LogicGameProcessor get() {
 		return this;
 	}
-
 }
