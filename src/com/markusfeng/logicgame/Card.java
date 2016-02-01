@@ -84,26 +84,40 @@ public final class Card {
 	}
 	
 	public static String getColor(int val){
-		switch(getSuit(val)){
-		case "Spades": return "Black";
-		case "Hearts": return "Red";
-		case "Clubs": return "Black";
-		case "Diamonds": return "Red";
-		case "Jokers": return getNumberString(val);
-		case "None": return "None";
-		default: throw new IllegalArgumentException("Invalid suit");
+		String s = getSuit(val);
+		if (s.equals("Spades")) {
+			return "Black";
+		} else if (s.equals("Hearts")) {
+			return "Red";
+		} else if (s.equals("Clubs")) {
+			return "Black";
+		} else if (s.equals("Diamonds")) {
+			return "Red";
+		} else if (s.equals("Jokers")) {
+			return getNumberString(val);
+		} else if (s.equals("None")) {
+			return "None";
+		} else {
+			throw new IllegalArgumentException("Invalid suit");
 		}
 	}
 	
 	public static char getShortSuit(int val){
-		switch(getSuit(val)){
-			case "Spades": return 'S';
-			case "Hearts": return 'H';
-			case "Clubs": return 'C';
-			case "Diamonds": return 'D';
-			case "Jokers": return 'X';
-			case "None": return 'N';
-			default: throw new IllegalArgumentException("Invalid suit");
+		String s = getSuit(val);
+		if (s.equals("Spades")) {
+			return 'S';
+		} else if (s.equals("Hearts")) {
+			return 'H';
+		} else if (s.equals("Clubs")) {
+			return 'C';
+		} else if (s.equals("Diamonds")) {
+			return 'D';
+		} else if (s.equals("Jokers")) {
+			return 'X';
+		} else if (s.equals("None")) {
+			return 'N';
+		} else {
+			throw new IllegalArgumentException("Invalid suit");
 		}
 	}
 	

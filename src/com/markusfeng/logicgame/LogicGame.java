@@ -2,6 +2,7 @@ package com.markusfeng.logicgame;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.newdawn.slick.AppGameContainer;
@@ -15,6 +16,15 @@ import org.newdawn.slick.SpriteSheet;
 
 /**
  * The engine driving the logic game
+ * 
+ * Turn structure:
+ *   Active player's partner chooses a card that he/she owns -> send INDEX to all (secure: send VALUE to active)
+ *   Active player looks at that card
+ *   Active player picks a card of enemy -> send INDEX to all
+ *   Active player declares a card -> send VALUE to all
+ *     If card correct, flip (secure: send VALUE to all)
+ *     Otherwise, active player chooses a card that he/she owns and flips -> send INDEX to all (secure: SEND VALUE to all)
+ *   Move on to next player as active player
  * 
  * @author Markus Feng
  */
@@ -76,7 +86,10 @@ public class LogicGame extends BasicGame{
 		}
 		//Shuffle cards
 		Collections.shuffle(cardList);
-		cardList.forEach(x -> System.out.println(x + ": " + Card.longString(x)));
+		//cardList.forEach(x -> System.out.println(x + ": " + Card.longString(x)));
+		for(int x : cardList){
+			System.out.println(x + ": " + Card.longString(x));
+		}
 		return cardList;
 	}
 	
@@ -96,7 +109,14 @@ public class LogicGame extends BasicGame{
 		List<Integer> sorted = new ArrayList<Integer>();
 		for(int i = 0; i < players; i++){
 			List<Integer> sub = new ArrayList<Integer>(cards.subList(i * cardsPerPlayer, (i + 1) * cardsPerPlayer));
-			sub.sort((x, y) -> Integer.compare(Card.getNumber(x), Card.getNumber(y)));
+			sub.sort(new Comparator<Integer>(){
+
+				@Override
+				public int compare(Integer x, Integer y) {
+					return Integer.compare(Card.getNumber(x), Card.getNumber(y));
+				}
+				
+			});
 			sorted.addAll(sub);
 		}
 		cards.clear();

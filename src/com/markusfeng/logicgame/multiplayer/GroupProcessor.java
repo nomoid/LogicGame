@@ -74,6 +74,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 			}
 		}
 		else{
+			ids.put(0L, handler);
 			handlerAdded(tpe.submit(new Callable<Long>(){
 				
 				@Override
@@ -150,12 +151,18 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 		if(!out.getArguments().containsKey("id")){
 			out = Commands.make(out, Collections.singletonMap("id", String.valueOf(id)));
 		}
+		else{
+			out = Commands.make(out, Collections.singletonMap("serverid", String.valueOf(id)));
+		}
 		output(out.toString(), blocking);
 	}
 
 	public void outputToHandler(SocketHandler<String> handler, Command out, boolean blocking) throws IOException{
 		if(!out.getArguments().containsKey("id")){
 			out = Commands.make(out, Collections.singletonMap("id", String.valueOf(id)));
+		}
+		else{
+			out = Commands.make(out, Collections.singletonMap("serverid", String.valueOf(id)));
 		}
 		outputToHandler(handler, out.toString(), blocking);
 	}
@@ -165,11 +172,10 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	 * 
 	 * initialize: sent by server to client upon connection
 	 *   targetid (id): assigns the client's id to targetid
-	 * getpermission: asks if the current system as permission
-	 *   permission (string): the name of the permission to get
 	 * 
 	 * Arguments:
 	 * 
+	 * serverid (id): the id of the server, if it's not the original sender
 	 * id (id): the id of the original sender
 	 * recipients (recipients): sends message only to recipients with the ids specified, separated by /
 	 * serveronly (no args): sends message to server only (superseded by recipients)
@@ -177,12 +183,17 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	 * Permissions:
 	 * recipients (server): allows the client to use the recipient argument
 	 * serveronly (server): allows the client to use the serveronly argument
-	 * getpermission (server): allows the client to use the getpermission command
 	 * 
 	 */
 	@Override
 	public void input(String in) {
 		Command command = Commands.parseCommand(in);
+		if(systemProcess(command)){
+			process(command);
+		}
+	}
+	
+	protected boolean systemProcess(Command command){
 		if(isServer){
 			long sender;
 			try{
@@ -213,10 +224,10 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 					}
 				}
 				if(!forward){
-					return;
+					return false;
 				}
 			}
-			else if(permission(sender, "serveronly") && !command.getArguments().containsKey("serveronly")){
+			else if(!permission(sender, "serveronly") || !command.getArguments().containsKey("serveronly")){
 				for(Entry<Long, SocketHandler<String>> handler : ids.entrySet()){
 					String id = command.getArguments().get("id");
 					try {
@@ -232,13 +243,13 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 					}
 				}
 			}
-			//Command handling
-			//TODO implement complete command handling system
+			return true;
 		}
 		else{
 			if(command.getName().equalsIgnoreCase("initialize")){
 				try {
 					serverID = Long.parseLong(command.getArguments().get("id"));
+					ids.put(serverID, ids.remove(0));
 				} catch (NumberFormatException e){
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -255,7 +266,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 				}
 			}
 		}
-		process(command);
+		return true;
 	}
 	
 	public Map<Long, SocketHandler<String>> getHandlersWithIDs(){

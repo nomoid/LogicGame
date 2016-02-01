@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -16,8 +17,12 @@ import com.markusfeng.SocketRelay.A.SocketHandler;
 import com.markusfeng.SocketRelay.A.SocketServer;
 import com.markusfeng.SocketRelay.B.SocketProcessorGenerator;
 import com.markusfeng.SocketRelay.C.SocketHelper;
+import com.markusfeng.SocketRelay.Compatibility.Function;
 
-public class MessagePassingProcessor extends GroupProcessor implements SocketProcessorGenerator<MessagePassingProcessor>{
+public class RemoteMethodMessageProcessor extends RemoteMethodGroupProcessor 
+		implements SocketProcessorGenerator<RemoteMethodGroupProcessor>{
+	
+	static final boolean VERBOSE = false;
 	
 	static Random random = new Random();
 	static final int MIN_PORT = 10000;
@@ -30,23 +35,39 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 		return random.nextInt(MAX_PORT - MIN_PORT) + MIN_PORT;
 	}
 	
+
+	@SuppressWarnings("unused")
 	public static void main(String[] args){
 		try{
 			int port = randomPort();
-			@SuppressWarnings("unused")
-			final MessagePassingProcessor server = startServer(port);
-			final MessagePassingProcessor client = startClient(new String[]{""}, port);
-			final MessagePassingProcessor client2 = startClient(new String[]{""}, port);
+			final RemoteMethodMessageProcessor server = startServer(port);
+			final RemoteMethodMessageProcessor client = startClient(new String[]{""}, port);
+			final RemoteMethodMessageProcessor client2 = startClient(new String[]{""}, port);
 			new Thread(new Runnable(){
 				
 				@Override
 				public void run() {
 					try {
-						while(!done){
-							client.waitForID();
-							client.output(Commands.make("ping", Collections.singletonMap("value", String.valueOf(random.nextLong()))), false);
-							Thread.sleep(1000);
-						}
+						//client.waitForID();
+						Thread.sleep(1000);
+						Future<Map<Long, CompletableFuture<String>>> future = 
+								server.invokeMethod("ping", Collections.singletonMap("pingmessage", "helloworld"));
+						Map<Long, CompletableFuture<String>> map = future.get();
+						System.out.println("invocations gotten: " + map);
+						/*for(Map.Entry<Long, CompletableFuture<String>> entry : map.entrySet()){
+							System.out.println("invocation returned: " + entry.getKey() + "," + entry.getValue().get());
+						}*/
+						CompletableFuture<Map<Long, Void>> completed = runAsynchronously(map, new Function<Map.Entry<Long, String>, Void>(){
+
+							@Override
+							public Void apply(Map.Entry<Long, String> entry) {
+								System.out.println("invocation returned: " + entry.getKey() + "," + entry.getValue());
+								return null;
+							}
+							
+						});
+						completed.get();
+						System.out.println("invocation complete");
 					} catch (Exception e){
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -54,7 +75,7 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 				}
 				
 			}).start();
-			new Thread(new Runnable(){
+			/*new Thread(new Runnable(){
 				
 				@Override
 				public void run() {
@@ -75,8 +96,8 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 					}
 				}
 				
-			}).start();
-			Thread.sleep(10000);
+			}).start();*/
+			Thread.sleep(5000);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -100,8 +121,8 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 		}
 	}
 	
-	static MessagePassingProcessor startServer(int port){
-		MessagePassingProcessor mp = new MessagePassingProcessor(true);
+	static RemoteMethodMessageProcessor startServer(int port){
+		RemoteMethodMessageProcessor mp = new RemoteMethodMessageProcessor(true);
 		try{
 			SocketServer<SocketHandler<String>> server =
 					SocketHelper.getStringServer(port, mp);
@@ -119,8 +140,8 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 		return mp;
 	}
 	
-	static MessagePassingProcessor startClient(String[] field, int portZ){
-		MessagePassingProcessor mp = new MessagePassingProcessor(false);
+	static RemoteMethodMessageProcessor startClient(String[] field, int portZ){
+		RemoteMethodMessageProcessor mp = new RemoteMethodMessageProcessor(false);
 		try{
 			//String[] field = mpm.getField().split(":");
 			String host = field.length < 1 ? "localhost" : field[0];
@@ -141,49 +162,68 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 		return mp;
 	}
 
-	public MessagePassingProcessor(boolean isServer) {
+	public RemoteMethodMessageProcessor(boolean isServer) {
 		super(isServer);
+		this.methods.put("ping", new RemoteMethod(){
+
+			@Override
+			public String apply(Map<String, String> parameters) {
+				long randTime = random.nextInt(2000) + 2000;
+				System.out.println(id + ": ping recieved (" + randTime + "): " + parameters.get("pingmessage"));
+				try {
+					Thread.sleep(randTime);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				System.out.println(id + ": ping back (" + randTime + "): " + parameters.get("pingmessage"));
+				return parameters.get("pingmessage");
+			}
+			
+		});
 	}
 
 	@Override
 	protected Map<String, String> handlerAdded(final Future<Long> addedID, SocketHandler<String> handler) {
-		tpe.execute(new Runnable(){
-			
-			@Override
-			public void run(){
-				try {
-					long added = addedID.get();
-					System.out.println(getID() + ": Handler added with id: " + added);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (ExecutionException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+		if(VERBOSE){
+			tpe.execute(new Runnable(){
+				
+				@Override
+				public void run(){
+					try {
+						long added = addedID.get();
+						System.out.println(getID() + ": Handler added with id: " + added);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (ExecutionException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
-			}
-			
-		});
+				
+			});
+		}
 		return new HashMap<String, String>();
 	}
 
 	@Override
 	protected void handlerRemoved(long addedID, SocketHandler<String> handler) {
-		System.out.println(getID() + ": Handler removed with id: " + addedID);
+		if(VERBOSE){
+			System.out.println(getID() + ": Handler removed with id: " + addedID);
+		}
 	}
 	
 	@Override
 	protected void process(Command command) {
-		System.out.println(getID() + ": Command recieved: " + command.getName() + " with arguments:" + command.getArguments());
+		if(VERBOSE){
+			System.out.println(getID() + ": Command recieved: " + command.getName() + " with arguments:" + command.getArguments());
+		}
 	}
-
+	
 	@Override
-	public MessagePassingProcessor get() {
+	public RemoteMethodGroupProcessor get() {
 		return this;
 	}
 
-	@Override
-	protected boolean permission(long requester, String permission) {
-		return true;
-	}
 }
