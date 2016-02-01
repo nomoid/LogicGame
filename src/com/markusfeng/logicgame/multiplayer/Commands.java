@@ -98,6 +98,68 @@ public final class Commands{
 	}
 
 
+	public static String fromArray(int[] ia){
+		StringBuilder sb = new StringBuilder();
+		boolean first = true;
+		for(int i : ia){
+			if(first){
+				first = false;
+			}
+			else{
+				sb.append("/");
+			}
+			sb.append(i);
+		}
+		return sb.toString();
+	}
+
+	public static String fromArray(long[] ia){
+		StringBuilder sb = new StringBuilder();
+		boolean first = true;
+		for(long i : ia){
+			if(first){
+				first = false;
+			}
+			else{
+				sb.append("/");
+			}
+			sb.append(i);
+		}
+		return sb.toString();
+	}
+
+	public static String fromIterable(Iterable<?> iter){
+		StringBuilder sb = new StringBuilder();
+		boolean first = true;
+		for(Object obj : iter){
+			if(first){
+				first = false;
+			}
+			else{
+				sb.append("/");
+			}
+			sb.append(obj);
+		}
+		return sb.toString();
+	}
+
+	public static int[] toIntArray(String s) throws NumberFormatException{
+		String[] arr = s.split("/");
+		int[] ia = new int[arr.length];
+		for(int i = 0; i < arr.length; i++){
+			ia[i] = Integer.parseInt(arr[i]);
+		}
+		return ia;
+	}
+
+	public static long[] toLongArray(String s) throws NumberFormatException{
+		String[] arr = s.split("/");
+		long[] ia = new long[arr.length];
+		for(int i = 0; i < arr.length; i++){
+			ia[i] = Long.parseLong(arr[i]);
+		}
+		return ia;
+	}
 
 	protected static final class Parser{
 

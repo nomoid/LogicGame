@@ -1,9 +1,13 @@
 package com.markusfeng.logicgame;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.newdawn.slick.AppGameContainer;
 import org.newdawn.slick.BasicGame;
@@ -11,8 +15,11 @@ import org.newdawn.slick.Color;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Graphics;
 import org.newdawn.slick.Image;
+import org.newdawn.slick.Input;
 import org.newdawn.slick.SlickException;
 import org.newdawn.slick.SpriteSheet;
+
+import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
 
 /**
  * The engine driving the logic game
@@ -30,6 +37,7 @@ import org.newdawn.slick.SpriteSheet;
  */
 public class LogicGame extends BasicGame{
 	
+	static final int DEFAULT_PORT = 59132;
 	
 	static final int DEFAULT_WIDTH = 1280;
 	static final int DEFAULT_HEIGHT = 800;
@@ -49,6 +57,9 @@ public class LogicGame extends BasicGame{
 	//if one spacing is the distance between two cards
 	int sidePadding = 3;
 	
+	//TODO Warning -> not closed yet
+	Set<Closeable> closeables;
+	
 	SpriteSheet sheet; 
 
 	public static void main(String[] args) throws SlickException{
@@ -65,6 +76,7 @@ public class LogicGame extends BasicGame{
 	
 	@Override
 	public void init(GameContainer gc) throws SlickException {
+		closeables = new HashSet<Closeable>();
 		//Creates the card sheets
 		sheet = new SpriteSheet(new Image("assets/poker_120.png"), cardWidth, cardHeight);
 		//Generates the cards (shuffling them), then deals the cards out
@@ -211,8 +223,52 @@ public class LogicGame extends BasicGame{
 			//If the collision rectangle collides with the clicked point
 			if(rects[i].collidesWithPoint(x, y)){
 				//Changes the card to be face up and face down, or vice versa
-				faceUp[i] = !faceUp[i];
+				if(processor == null){
+					faceUp[i] = !faceUp[i];
+				}
+				else{
+					processor.invokeMethod("flip", Collections.singletonMap("index", String.valueOf(i)));
+				}
 			}
+		}
+		
+	}
+	
+	protected LogicGameProcessor processor;
+	
+	@Override
+	public void keyReleased(int key, char c){
+		if(key == Input.KEY_1){
+			startServer(DEFAULT_PORT);
+		}
+		else if(key == Input.KEY_2){
+			startClient("localhost", DEFAULT_PORT);
+		}
+	}
+	
+	protected void startServer(int port){
+		try {
+			if(processor != null){
+				return;
+			}
+			System.out.println("Server started");
+			processor = LogicGameProcessor.startServer(this, port, closeables);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	protected void startClient(String host, int port){
+		try {
+			if(processor != null){
+				return;
+			}
+			System.out.println("Client started");
+			processor = LogicGameProcessor.startClient(this, host, port, closeables);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	
@@ -224,5 +280,13 @@ public class LogicGame extends BasicGame{
 	public Image getBackFromSheet(int back){
 		//Get the given card back from the sprite sheet
 		return getCardFromSheet(back + 55);
+	}
+	
+	public int[] getCards(){
+		return cards;
+	}
+	
+	public boolean[] getFaceUp(){
+		return faceUp;
 	}
 }

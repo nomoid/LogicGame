@@ -295,7 +295,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 		return isServer;
 	}
 	
-	protected void waitForID(){
+	public void waitForID(){
 		synchronized(assignmentLock){
 			while(!idAssigned()){
 				try {

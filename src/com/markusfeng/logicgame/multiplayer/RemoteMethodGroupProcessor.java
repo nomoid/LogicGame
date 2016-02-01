@@ -195,17 +195,7 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 				e.printStackTrace();
 				fail = true;
 			}
-			StringBuilder sb = new StringBuilder();
-			boolean first = true;
-			for(long l : invocationTargets){
-				if(first){
-					first = false;
-				}
-				else{
-					sb.append("/");
-				}
-				sb.append(l);
-			}
+			StringBuilder sb = new StringBuilder(Commands.fromIterable(invocationTargets));
 			if(fail){
 				if(invocationTargets.size() != 0){
 					sb.append("/");
@@ -220,7 +210,7 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 		}
 	}
 	
-	void invokeData(Command command){
+	protected void invokeData(Command command){
 		Map<Long, CompletableFuture<String>> returnMap = new HashMap<Long, CompletableFuture<String>>();
 		String targets = command.getArguments().get("targets");
 		String[] targetArray = targets.split("/"); 
@@ -240,7 +230,7 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 		}
 	}
 
-	public Command applyInvoke(Command command){
+	protected Command applyInvoke(Command command){
 		String method = command.getArguments().get("methodname");
 		long sender = 0;
 		try{
@@ -377,5 +367,9 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 			
 		});
 		return future;
+	}
+	
+	protected void addMethod(String name, RemoteMethod remoteMethod){
+		methods.put(name, remoteMethod);
 	}
 }

@@ -164,7 +164,7 @@ public class RemoteMethodMessageProcessor extends RemoteMethodGroupProcessor
 
 	public RemoteMethodMessageProcessor(boolean isServer) {
 		super(isServer);
-		this.methods.put("ping", new RemoteMethod(){
+		addMethod("ping", new RemoteMethod(){
 
 			@Override
 			public String apply(Map<String, String> parameters) {

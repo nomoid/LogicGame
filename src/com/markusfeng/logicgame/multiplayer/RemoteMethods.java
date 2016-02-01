@@ -28,17 +28,6 @@ public final class RemoteMethods {
 	}
 	
 	public static Command recipients(Command command, long... recipients){
-		StringBuilder sb = new StringBuilder();
-		boolean first = true;
-		for(long l : recipients){
-			if(first){
-				first = false;
-			}
-			else{
-				sb.append("/");
-			}
-			sb.append(l);
-		}
-		return Commands.make(command, Collections.singletonMap("recipients", sb.toString()));
+		return Commands.make(command, Collections.singletonMap("recipients", Commands.fromArray(recipients)));
 	}
 }
