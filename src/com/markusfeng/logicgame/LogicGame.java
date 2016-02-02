@@ -368,7 +368,6 @@ public class LogicGame extends BasicGame{
 		if(versions.length != 1){
 			throw new UnsupportedOperationException("No valid version found");
 		}
-		System.out.println(versions[0].value());
 		return versions[0].value();
 	}
 
