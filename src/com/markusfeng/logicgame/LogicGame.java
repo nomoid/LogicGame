@@ -103,6 +103,9 @@ public class LogicGame extends BasicGame{
 	String consoleLine = "";
 	
 	SpriteSheet sheet; 
+	
+	//Processor for multiplayer
+	protected LogicGameProcessor processor;
 
 	public static void main(String[] args) throws SlickException{
 		//Creates the game container
@@ -185,6 +188,7 @@ public class LogicGame extends BasicGame{
 	public void render(GameContainer gc, Graphics g) throws SlickException {
 		g.setBackground(new Color(0, 0, 0));
 		//g.clear();
+		g.setColor(Color.white);
 		g.drawString("Console: " + consoleLine, 10, 30);
 		g.drawString("Version: " + getVersion(), 10, 50);
 		g.drawString("Current Turn: " + currentTurn, 160, 160);
@@ -199,6 +203,8 @@ public class LogicGame extends BasicGame{
 		if(reveal == null){
 			reveal = new CollisionRect(revealX, revealY, revealWidth, revealHeight);
 		}
+		g.setColor(Color.black);
+		g.drawString("Reveal Own Cards", revealX, revealY);
 		int claimWidth = 200;
 		int claimHeight = 40;
 		int claimX = gc.getWidth() * 2 / 3 - claimWidth / 2;
@@ -208,6 +214,8 @@ public class LogicGame extends BasicGame{
 		if(claim == null){
 			claim = new CollisionRect(claimX, claimY, claimWidth, claimHeight);
 		}
+		g.setColor(Color.black);
+		g.drawString("Claim", claimX, claimY);
 		//Try 4 player rendering first
 		//Render counterclockwise from bottom
 		for(int i = 0; i < players; i++){
@@ -342,10 +350,10 @@ public class LogicGame extends BasicGame{
 		}
 		if(claim.collidesWithPoint(x, y)){
 			if(processor == null){
-				claim();
+				claim(playerNumber);
 			}
 			else{
-				processor.invokeMethod("claim", Collections.<String, String>emptyMap());
+				processor.invokeMethod("claim", Collections.singletonMap("playernumber", String.valueOf(playerNumber)));
 			}
 		}
 	}
@@ -416,6 +424,7 @@ public class LogicGame extends BasicGame{
 			}
 			currentPicking = index;
 			cardPicking = true;
+			break;
 		case ACTION_REVEALING:
 			if(playerNumber != currentTurn){
 				return;
@@ -432,6 +441,19 @@ public class LogicGame extends BasicGame{
 			else{
 				reveal(index);
 			}
+			break;
+		case ACTION_CLAIMING:
+			if(playerNumber != currentTurn){
+				return;
+			}
+			if(faceUp[index]){
+				return;
+			}
+			if(cardPicking){
+				return;
+			}
+			currentPicking = index;
+			cardPicking = true;
 			break;
 		}
 	}
@@ -471,12 +493,35 @@ public class LogicGame extends BasicGame{
 		if(cards[index] == pick){
 			//Guess correct, turn moves forward
 			faceUp[index] = true;
-			currentTurn++;
-			currentAction = ACTION_PASSING;
+			if(currentAction == ACTION_GUESSING){
+				currentTurn++;
+				currentAction = ACTION_PASSING;
+			}
+			else if(currentAction == ACTION_CLAIMING){
+				boolean passing = true;
+				for(boolean b : faceUp){
+					if(!b){
+						passing = false;
+						break;
+					}
+				}
+				if(passing){
+					//TODO winning
+					System.out.println("Player " + currentTurn + " wins!");
+					currentTurn = -1;
+				}
+			}
 		}
 		else{
 			//Guess wrong
-			currentAction = ACTION_REVEALING;
+			if(currentAction == ACTION_GUESSING){
+				currentAction = ACTION_REVEALING;
+			}
+			else if(currentAction == ACTION_CLAIMING){
+				//TODO losing
+				System.out.println("Player " + currentTurn + " loses!");
+				currentTurn = -1;
+			}
 		}
 		return "complete";
 	}
@@ -490,8 +535,14 @@ public class LogicGame extends BasicGame{
 	}
 
 	//Remote method
-	public void claim() {
-		//TODO to be completed
+	public String claim(int player) {
+		currentTurn = player;
+		currentAction = ACTION_CLAIMING;
+		//Reveal all of claiming player's cards
+		for(int i = player * cardsPerPlayer; i < (player + 1) * cardsPerPlayer; i++){
+			faceUp[i] = true;
+		}
+		return "complete";
 	}
 	
 	public void revealSelf() {
@@ -516,8 +567,6 @@ public class LogicGame extends BasicGame{
 	boolean isPickingHearts(){
 		return Card.getSuit(cards[currentPicking]).equals("Hearts");
 	}
-	
-	protected LogicGameProcessor processor;
 	
 	@Override
 	public void keyPressed(int key, char c){
