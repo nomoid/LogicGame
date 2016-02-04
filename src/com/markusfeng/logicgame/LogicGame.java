@@ -1,6 +1,7 @@
 package com.markusfeng.logicgame;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,7 +37,7 @@ import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
  * 
  * @author Markus Feng
  */
-@Version(value = "build-1")
+@Version(value = "0.0.0.1")
 public class LogicGame extends BasicGame{
 	
 	static final int DEFAULT_PORT = 59132;
@@ -84,7 +85,7 @@ public class LogicGame extends BasicGame{
 	public void init(GameContainer gc) throws SlickException {
 		closeables = new HashSet<Closeable>();
 		//Creates the card sheets
-		sheet = new SpriteSheet(new Image("assets/poker_120.png"), cardWidth, cardHeight);
+		sheet = new SpriteSheet(new Image("resources" + File.separator + "poker_120.png"), cardWidth, cardHeight);
 		//Generates the cards (shuffling them), then deals the cards out
 		dealCards(generateCards());
 	}
