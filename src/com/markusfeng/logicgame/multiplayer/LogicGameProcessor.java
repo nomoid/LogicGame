@@ -59,6 +59,46 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 			}
 			
 		});
+		addMethod("pass", new RemoteMethod(){
+
+			@Override
+			public String apply(Map<String, String> parameters) {
+				int index = Integer.parseInt(parameters.get("index"));
+				LogicGame game = LogicGameProcessor.this.game;
+				return game.pass(index);
+			}
+			
+		});
+		addMethod("received", new RemoteMethod(){
+
+			@Override
+			public String apply(Map<String, String> parameters) {
+				LogicGame game = LogicGameProcessor.this.game;
+				return game.received();
+			}
+			
+		});
+		addMethod("guess", new RemoteMethod(){
+
+			@Override
+			public String apply(Map<String, String> parameters) {
+				int index = Integer.parseInt(parameters.get("index"));
+				int pick = Integer.parseInt(parameters.get("pick"));
+				LogicGame game = LogicGameProcessor.this.game;
+				return game.guess(index, pick);
+			}
+			
+		});
+		addMethod("reveal", new RemoteMethod(){
+
+			@Override
+			public String apply(Map<String, String> parameters) {
+				int index = Integer.parseInt(parameters.get("index"));
+				LogicGame game = LogicGameProcessor.this.game;
+				return game.reveal(index);
+			}
+			
+		});
 	}
 
 	@Override

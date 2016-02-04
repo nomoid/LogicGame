@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.newdawn.slick.AppGameContainer;
@@ -45,6 +47,15 @@ public class LogicGame extends BasicGame{
 	static final int DEFAULT_WIDTH = 1280;
 	static final int DEFAULT_HEIGHT = 800;
 	
+	//Actions
+	static final int ACTION_PASSING = 0;
+	static final int ACTION_PASS_RECEIVING = 1;
+	static final int ACTION_GUESSING = 2;
+	static final int ACTION_REVEALING = 3;
+	static final int ACTION_CLAIMING = 4;
+	
+	int currentAction = 0;
+	int currentTurn = 0;
 	int playerNumber = 0;
 	int players = 4;
 	int cardsPerPlayer = 6;
@@ -55,11 +66,36 @@ public class LogicGame extends BasicGame{
 	boolean[] faceUp = new boolean[cards.length];
 	CollisionRect[] rects = new CollisionRect[cards.length];
 	
+
+	int[] hearts = new int[players * cardsPerPlayer / 2];
+	int[] spades = new int[players * cardsPerPlayer / 2];
+	boolean[] alwaysFaceUp = new boolean[players * cardsPerPlayer / 2];
+	
+	//Is currently "claiming" (finishing up a game)
+	boolean claiming = false;
+	//Is currently picking a card
+	boolean cardPicking = false;
+	//Center cards for picking
+	CollisionRect[] centerRects = new CollisionRect[cardsPerPlayer * players / 2];
+	
+	CollisionRect reveal;
+	CollisionRect claim;
+	//Index of currently picked card
+	int currentPicking = 0;
+	
+	//Index of a received card to temporarily reveal
+	int receiveIndex = 0;
+	
 	int cardWidth = 90;
 	int cardHeight = 120;
 	//Number of "spacings" to put on either side of the cards,
 	//if one spacing is the distance between two cards
 	int sidePadding = 3;
+	
+	//Default time to reveal when pressing "reveal self"
+	static final int DEFAULT_TIME = 3000;
+	//Current amount of time left in "reveal self" mode (ms)
+	int timeCounter = DEFAULT_TIME;
 	
 	//TODO Warning -> not closed yet
 	Set<Closeable> closeables;
@@ -97,11 +133,14 @@ public class LogicGame extends BasicGame{
 		//Ace to Queen of Hearts and Spades (by default)
 		for(int i = 0; i < cardsPerPlayer * players / 2; i++){
 			cardList.add(Card.HEARTS + i + 1);
+			hearts[i] = Card.HEARTS + i + 1;
 			cardList.add(Card.SPADES + i + 1);
+			spades[i] = Card.SPADES + i + 1;
+			alwaysFaceUp[i] = true;
 		}
 		for(int i = 0; i < cardsPerPlayer; i++){
 			//Sets the cards of this player to be face up
-			faceUp[transpose(i)] = true;
+			//faceUp[transpose(i)] = true;
 		}
 		//Shuffle cards
 		Collections.shuffle(cardList);
@@ -148,6 +187,9 @@ public class LogicGame extends BasicGame{
 		//g.clear();
 		g.drawString("Console: " + consoleLine, 10, 30);
 		g.drawString("Version: " + getVersion(), 10, 50);
+		g.drawString("Current Turn: " + currentTurn, 160, 160);
+		g.drawString("Current Action: " + currentAction, 160, 180);
+		g.drawString("Player Number: " + playerNumber, 160, 200);
 		//Try 4 player rendering first
 		//Render counterclockwise from bottom
 		for(int i = 0; i < players; i++){
@@ -186,13 +228,37 @@ public class LogicGame extends BasicGame{
 					throw new IllegalStateException("Invalid player: " + i);	
 				}
 				//Renders the card with the given information
-				renderCard(gc, g, currentIndex, x, y, transform * i);
+				renderCard(gc, g, rects, cards, faceUp, currentIndex, x, y, transform * i);
+			}
+		}
+		if(cardPicking){
+			//Two rows
+			for(int i = 0; i < 2; i++){
+				for(int j = 0; j < cardsPerPlayer * players / 4; j++){
+					//Current index in the cards and faceDown arrays
+					int currentIndex = i * cardsPerPlayer + j;
+					//Calculate the spacing between each card
+					int spacing = (gc.getHeight() - (cardsPerPlayer) * cardWidth) / 
+							(cardsPerPlayer + sidePadding * 2 - 1);
+					int x;
+					int y;
+					int frameWidth = gc.getWidth();
+					int frameHeight = gc.getHeight();
+					x = spacing * (j + sidePadding) + cardWidth * j + (frameWidth - frameHeight) / 2;
+					if(i == 0){
+						y = frameHeight / 3;
+					}
+					else{
+						y = frameHeight * 2 / 3 - cardHeight;
+					}
+					renderCard(gc, g, centerRects, isPickingHearts() ? hearts : spades, alwaysFaceUp, currentIndex, x, y, 0);
+				}
 			}
 		}
 	}
 	
-	void renderCard(GameContainer gc, Graphics g, int currentIndex, 
-			int x, int y, float transform){
+	void renderCard(GameContainer gc, Graphics g, CollisionRect[] rects, int[] cards, boolean[] faceUp,
+			int currentIndex, int x, int y, float transform){
 		//Save performance by only setting the collision rectangle if it doesn't already exist
 		if(rects[currentIndex] == null){
 			//Makes a collision rectangle for the card to check for clicks
@@ -209,8 +275,12 @@ public class LogicGame extends BasicGame{
 		int currentCard = cards[currentIndex];
 		//Rotates the rendering system to make cards rotated
 		g.rotate(x + cardWidth/2, y + cardHeight/2, transform);
+		//If a card is currently being revealed
+		if(currentAction == ACTION_PASS_RECEIVING && currentIndex == receiveIndex){
+			g.drawImage(getBackFromSheet(1), x, y - 10);
+		}
 		//Renders face down or face up card based on whether the face down variable is set to true
-		if(!faceUp[currentIndex]){
+		if(!faceUp[currentIndex] && (timeCounter == 0 || !isOwn(currentIndex))){
 			g.drawImage(getBackFromSheet(Card.getColor(currentCard).equals("Red") ? 0 : 3), x, y);
 		}
 		else{
@@ -222,7 +292,12 @@ public class LogicGame extends BasicGame{
 
 	@Override
 	public void update(GameContainer gc, int delta) throws SlickException {
-		
+		if(timeCounter > 0){
+			timeCounter -= delta;
+		}
+		if(timeCounter < 0){
+			timeCounter = 0;
+		}
 	}
 	
 	@Override
@@ -231,16 +306,177 @@ public class LogicGame extends BasicGame{
 		for(int i = 0; i < rects.length; i++){
 			//If the collision rectangle collides with the clicked point
 			if(rects[i].collidesWithPoint(x, y)){
-				//Changes the card to be face up and face down, or vice versa
-				if(processor == null){
-					faceUp[i] = !faceUp[i];
-				}
-				else{
-					processor.invokeMethod("flip", Collections.singletonMap("index", String.valueOf(i)));
+				cardClicked(i);
+				return;
+			}
+		}
+		if(cardPicking){
+			for(int i = 0; i < centerRects.length; i++){
+				//If the collision rectangle collides with the clicked point
+				if(centerRects[i].collidesWithPoint(x, y)){
+					cardPicked(i);
+					return;
 				}
 			}
 		}
-		
+	}
+	
+	boolean isOwn(int index){
+		return untranspose(index) / cardsPerPlayer == 0;
+	}
+	
+	boolean isPartner(int index){
+		int playerNum = untranspose(index) / cardsPerPlayer;
+		return playerNum > 0 && playerNum % 2 == 0;
+	}
+	
+	boolean isOpponent(int index){
+		int playerNum = untranspose(index) / cardsPerPlayer;
+		return playerNum % 2 == 1;
+	}
+	
+	int nextPartner(int player){
+		return (player + 2) % players;
+	}
+	
+	void cardClicked(int index){
+		switch(currentAction){
+		case ACTION_PASSING:
+			if(playerNumber != nextPartner(currentTurn)){
+				return;
+			}
+			if(!isOwn(index)){
+				return;
+			}
+			if(faceUp[index]){
+				return;
+			}
+			if(processor != null){
+				processor.invokeMethod("pass", Collections.singletonMap("index", String.valueOf(index)));
+			}
+			else{
+				pass(index);
+			}
+			break;
+		case ACTION_PASS_RECEIVING:
+			if(playerNumber != currentTurn){
+				return;
+			}
+			if(receiveIndex != index){
+				return;
+			}
+			if(processor != null){
+				processor.invokeMethod("received", Collections.<String, String>emptyMap());
+			}
+			else{
+				received();
+			}
+			break;
+		case ACTION_GUESSING:
+			if(playerNumber != currentTurn){
+				return;
+			}
+			if(!isOpponent(index)){
+				return;
+			}
+			if(faceUp[index]){
+				return;
+			}
+			if(cardPicking){
+				return;
+			}
+			currentPicking = index;
+			cardPicking = true;
+		case ACTION_REVEALING:
+			if(playerNumber != currentTurn){
+				return;
+			}
+			if(!isOwn(index)){
+				return;
+			}
+			if(faceUp[index]){
+				return;
+			}
+			if(processor != null){
+				processor.invokeMethod("reveal", Collections.singletonMap("index", String.valueOf(index)));
+			}
+			else{
+				reveal(index);
+			}
+			break;
+		}
+	}
+
+	//Remote method
+	public String flip(int index) {
+		faceUp[index] = !faceUp[index];
+		return "complete";
+	}
+
+	//Remove method
+	public String pass(int index) {
+		if(playerNumber % 2 == currentTurn % 2){
+			faceUp[index] = true;
+			receiveIndex = index;
+		}
+		else{
+			receiveIndex = index;
+		}
+		currentAction = ACTION_PASS_RECEIVING;
+		return "complete";
+	}
+	
+	//Remove method
+	public String received() {
+		if(playerNumber % 2 == currentTurn % 2){
+			faceUp[receiveIndex] = false;
+		}
+		currentAction = ACTION_GUESSING;
+		return "complete";
+	}
+	
+	//Remote method
+	public String guess(int index, int pick) {
+		System.out.println("index:" + index + ", guess:" + Card.shortString(pick) + 
+				", actual:" + Card.shortString(cards[index]));
+		if(cards[index] == pick){
+			//Guess correct, turn moves forward
+			faceUp[index] = true;
+			currentTurn++;
+			currentAction = ACTION_PASSING;
+		}
+		else{
+			//Guess wrong
+			currentAction = ACTION_REVEALING;
+		}
+		return "complete";
+	}
+	
+	//Remove method
+	public String reveal(int index) {
+		faceUp[index] = true;
+		currentTurn++;
+		currentAction = ACTION_PASSING;
+		return "complete";
+	}
+
+	void cardPicked(int index){
+		int pick = isPickingHearts() ? hearts[index] : spades[index];
+		System.out.println("Picked: " + Card.longString(pick));
+		Map<String, String> args = new HashMap<String, String>();
+		args.put("index", String.valueOf(currentPicking));
+		args.put("pick", String.valueOf(pick));
+		if(processor != null){
+			processor.invokeMethod("guess", args);
+		}
+		else{
+			guess(currentPicking, pick);
+		}
+		cardPicking = false;
+	}
+	
+	boolean isPickingHearts(){
+		return Card.getSuit(cards[currentPicking]).equals("Hearts");
 	}
 	
 	protected LogicGameProcessor processor;
@@ -347,13 +583,10 @@ public class LogicGame extends BasicGame{
 		}
 		for(int i = 0; i < cardsPerPlayer; i++){
 			//Sets the cards of this player to be face up
-			faceUp[transpose(i)] = true;
+			//faceUp[transpose(i)] = true;
 		}
-	}
-
-	public String flip(int index) {
-		faceUp[index] = !faceUp[index];
-		return "complete";
+		cardPicking = false;
+		currentTurn = 0;
 	}
 	
 	public int transpose(int index){
