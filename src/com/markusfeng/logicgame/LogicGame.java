@@ -190,6 +190,24 @@ public class LogicGame extends BasicGame{
 		g.drawString("Current Turn: " + currentTurn, 160, 160);
 		g.drawString("Current Action: " + currentAction, 160, 180);
 		g.drawString("Player Number: " + playerNumber, 160, 200);
+		int revealWidth = 200;
+		int revealHeight = 40;
+		int revealX = gc.getWidth() / 3 - revealWidth / 2;
+		int revealY = gc.getHeight() / 4 - revealHeight / 2;
+		g.setColor(Color.green);
+		g.fillRect(revealX, revealY, revealWidth, revealHeight);
+		if(reveal == null){
+			reveal = new CollisionRect(revealX, revealY, revealWidth, revealHeight);
+		}
+		int claimWidth = 200;
+		int claimHeight = 40;
+		int claimX = gc.getWidth() * 2 / 3 - claimWidth / 2;
+		int claimY = gc.getHeight() / 4 - claimHeight / 2;
+		g.setColor(Color.green);
+		g.fillRect(claimX, claimY, claimWidth, claimHeight);
+		if(claim == null){
+			claim = new CollisionRect(claimX, claimY, claimWidth, claimHeight);
+		}
 		//Try 4 player rendering first
 		//Render counterclockwise from bottom
 		for(int i = 0; i < players; i++){
@@ -319,8 +337,19 @@ public class LogicGame extends BasicGame{
 				}
 			}
 		}
+		if(reveal.collidesWithPoint(x, y)){
+			revealSelf();
+		}
+		if(claim.collidesWithPoint(x, y)){
+			if(processor == null){
+				claim();
+			}
+			else{
+				processor.invokeMethod("claim", Collections.<String, String>emptyMap());
+			}
+		}
 	}
-	
+
 	boolean isOwn(int index){
 		return untranspose(index) / cardsPerPlayer == 0;
 	}
@@ -413,7 +442,7 @@ public class LogicGame extends BasicGame{
 		return "complete";
 	}
 
-	//Remove method
+	//Remote method
 	public String pass(int index) {
 		if(playerNumber % 2 == currentTurn % 2){
 			faceUp[index] = true;
@@ -426,7 +455,7 @@ public class LogicGame extends BasicGame{
 		return "complete";
 	}
 	
-	//Remove method
+	//Remote method
 	public String received() {
 		if(playerNumber % 2 == currentTurn % 2){
 			faceUp[receiveIndex] = false;
@@ -452,12 +481,21 @@ public class LogicGame extends BasicGame{
 		return "complete";
 	}
 	
-	//Remove method
+	//Remote method
 	public String reveal(int index) {
 		faceUp[index] = true;
 		currentTurn++;
 		currentAction = ACTION_PASSING;
 		return "complete";
+	}
+
+	//Remote method
+	public void claim() {
+		//TODO to be completed
+	}
+	
+	public void revealSelf() {
+		timeCounter = DEFAULT_TIME;
 	}
 
 	void cardPicked(int index){
