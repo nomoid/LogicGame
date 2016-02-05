@@ -146,12 +146,12 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 			String version = command.getArguments().get("gameversion");
 			int[] array = Commands.toIntArray(command.getArguments().get("carddata"));
 			int playerNumber = Integer.parseInt(command.getArguments().get("playernumber"));
-			game.setCardDataRecieved(array, playerNumber);
 			if(!game.compatibleVersion(version)){
 				//Shutdown
 				close();
 				throw new IllegalArgumentException("Incompatible version");
 			}
+			game.setCardDataRecieved(array, playerNumber);
 		}
 	}
 	
