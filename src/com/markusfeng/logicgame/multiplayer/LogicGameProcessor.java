@@ -151,7 +151,7 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 				close();
 				throw new IllegalArgumentException("Incompatible version");
 			}
-			game.setCardDataRecieved(array, playerNumber);
+			game.setCardDataReceived(array, playerNumber);
 		}
 	}
 	
