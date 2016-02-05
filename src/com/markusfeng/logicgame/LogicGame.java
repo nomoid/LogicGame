@@ -42,6 +42,7 @@ import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
 @Version(value = "0.0.0.2")
 public class LogicGame extends BasicGame{
 	
+	//Default server port (random number)
 	static final int DEFAULT_PORT = 59132;
 	
 	static final int DEFAULT_WIDTH = 1280;
@@ -54,31 +55,40 @@ public class LogicGame extends BasicGame{
 	static final int ACTION_REVEALING = 3;
 	static final int ACTION_CLAIMING = 4;
 	
+	//The current action, as specified by Actions
 	int currentAction = 0;
+	//The number of the player who has the current turn
 	int currentTurn = 0;
+	//The number of the current player
 	int playerNumber = 0;
-	int players = 4;
-	int cardsPerPlayer = 6;
+	
+	final int players = 4;
+	final int cardsPerPlayer = 6;
+	
 	//Array for storing all of the values of cards
 	//No security model -> give everyone all information about cards
-	int[] cards = new int[players * cardsPerPlayer];
+	final int[] cards = new int[players * cardsPerPlayer];
 	//Index matches with cards
-	boolean[] faceUp = new boolean[cards.length];
-	CollisionRect[] rects = new CollisionRect[cards.length];
+	final boolean[] faceUp = new boolean[cards.length];
+	final CollisionRect[] rects = new CollisionRect[cards.length];
 	
-
-	int[] hearts = new int[players * cardsPerPlayer / 2];
-	int[] spades = new int[players * cardsPerPlayer / 2];
-	boolean[] alwaysFaceUp = new boolean[players * cardsPerPlayer / 2];
+	//Spades for inner cards
+	final int[] hearts = new int[players * cardsPerPlayer / 2];
+	//Hearts for inner cards
+	final int[] spades = new int[players * cardsPerPlayer / 2];
+	//An array that is always face up for inner cards
+	final boolean[] alwaysFaceUp = new boolean[players * cardsPerPlayer / 2];
 	
 	//Is currently "claiming" (finishing up a game)
 	boolean claiming = false;
 	//Is currently picking a card
 	boolean cardPicking = false;
 	//Center cards for picking
-	CollisionRect[] centerRects = new CollisionRect[cardsPerPlayer * players / 2];
+	final CollisionRect[] centerRects = new CollisionRect[cardsPerPlayer * players / 2];
 	
+	//The reveal button collision box
 	CollisionRect reveal;
+	//The claim button collision box
 	CollisionRect claim;
 	//Index of currently picked card
 	int currentPicking = 0;
@@ -274,6 +284,47 @@ public class LogicGame extends BasicGame{
 		}
 	}
 	
+	//Renders a card
+	void renderCard(GameContainer gc, Graphics g, CollisionRect[] rects, int[] cards, boolean[] faceUp,
+			int currentIndex, int x, int y, float transform){
+		//Save performance by only setting the collision rectangle if it doesn't already exist
+		if(rects[currentIndex] == null){
+			//Makes a collision rectangle for the card to check for clicks
+			CollisionRect rect = new CollisionRect(x, y, cardWidth, cardHeight);
+			if((int)(Math.round(transform / 90)) % 2 == 0){
+				//Adds the collision rectangle to the array
+				rects[currentIndex] = rect;
+			}
+			else{
+				//If the card is rotated, make sure to rotate the collision rectangle
+				rects[currentIndex] = rect.rotatedCopy();
+			}
+		}
+		int currentCard = cards[currentIndex];
+		//Rotates the rendering system to make cards rotated
+		g.rotate(x + cardWidth/2, y + cardHeight/2, transform);
+		//Only do it if the cards rendered are in the outer edge
+		if(cards == this.cards){
+			//If the card is currently being revealed
+			if(currentAction == ACTION_PASS_RECEIVING && currentIndex == receiveIndex){
+				g.drawImage(getBackFromSheet(1), x, y - 20);
+			}
+			//If the card is the last card guessed
+			if(currentIndex == guessIndex){
+				g.drawImage(getBackFromSheet(5), x, y - 20);
+			}
+		}
+		//Renders face down or face up card based on whether the face down variable is set to true
+		if(!faceUp[currentIndex] && (timeCounter == 0 || !isOwn(currentIndex))){
+			g.drawImage(getBackFromSheet(Card.getColor(currentCard).equals("Red") ? 0 : 3), x, y);
+		}
+		else{
+			g.drawImage(getCardFromSheet(currentCard), x, y);
+		}
+		//Resets the transform to the original
+		g.resetTransform();
+	}
+
 	//Renders a button with a text label, returning the collision box of the button
 	CollisionRect renderButton(Graphics g, String text, int x, int y, int width, int height, Color background, Color foreground){
 		int realX = x - width / 2;
@@ -288,6 +339,13 @@ public class LogicGame extends BasicGame{
 		return button;
 	}
 	
+	//Renders a string, centered by width
+	//Top for y, center for x
+	void renderString(Graphics g, String text, int x, int y){
+		g.drawString(text, x - getTextWidth(g, text) / 2, 
+				y);
+	}
+
 	//Gets the width of a string in a graphics context
 	int getTextWidth(Graphics g, String text){
 		return g.getFont().getWidth(text);
@@ -340,54 +398,6 @@ public class LogicGame extends BasicGame{
 		return "Player " + (number + 1);
 	}
 	
-	//Renders a string, centered by width
-	//Top for y, center for x
-	void renderString(Graphics g, String text, int x, int y){
-		g.drawString(text, x - getTextWidth(g, text) / 2, 
-				y);
-	}
-	
-	//Renders a card
-	void renderCard(GameContainer gc, Graphics g, CollisionRect[] rects, int[] cards, boolean[] faceUp,
-			int currentIndex, int x, int y, float transform){
-		//Save performance by only setting the collision rectangle if it doesn't already exist
-		if(rects[currentIndex] == null){
-			//Makes a collision rectangle for the card to check for clicks
-			CollisionRect rect = new CollisionRect(x, y, cardWidth, cardHeight);
-			if((int)(Math.round(transform / 90)) % 2 == 0){
-				//Adds the collision rectangle to the array
-				rects[currentIndex] = rect;
-			}
-			else{
-				//If the card is rotated, make sure to rotate the collision rectangle
-				rects[currentIndex] = rect.rotatedCopy();
-			}
-		}
-		int currentCard = cards[currentIndex];
-		//Rotates the rendering system to make cards rotated
-		g.rotate(x + cardWidth/2, y + cardHeight/2, transform);
-		//Only do it if the cards rendered are in the outer edge
-		if(cards == this.cards){
-			//If the card is currently being revealed
-			if(currentAction == ACTION_PASS_RECEIVING && currentIndex == receiveIndex){
-				g.drawImage(getBackFromSheet(1), x, y - 20);
-			}
-			//If the card is the last card guessed
-			if(currentIndex == guessIndex){
-				g.drawImage(getBackFromSheet(5), x, y - 20);
-			}
-		}
-		//Renders face down or face up card based on whether the face down variable is set to true
-		if(!faceUp[currentIndex] && (timeCounter == 0 || !isOwn(currentIndex))){
-			g.drawImage(getBackFromSheet(Card.getColor(currentCard).equals("Red") ? 0 : 3), x, y);
-		}
-		else{
-			g.drawImage(getCardFromSheet(currentCard), x, y);
-		}
-		//Resets the transform to the original
-		g.resetTransform();
-	}
-
 	//Updates the game's state
 	@Override
 	public void update(GameContainer gc, int delta) throws SlickException {
@@ -437,28 +447,6 @@ public class LogicGame extends BasicGame{
 		}
 	}
 
-	//Returns true if the card at index is the player's own
-	boolean isOwn(int index){
-		return untranspose(index) / cardsPerPlayer == 0;
-	}
-	
-	//Returns true if the card at index is the player's partner's
-	boolean isPartner(int index){
-		int playerNum = untranspose(index) / cardsPerPlayer;
-		return playerNum > 0 && playerNum % 2 == 0;
-	}
-	
-	//Returns true if the card at index is the player's opponent's
-	boolean isOpponent(int index){
-		int playerNum = untranspose(index) / cardsPerPlayer;
-		return playerNum % 2 == 1;
-	}
-	
-	//Returns the index of the player's next partner
-	int nextPartner(int player){
-		return (player + 2) % players;
-	}
-	
 	//Called when a card on the outer edge is clicked
 	void cardClicked(int index){
 		switch(currentAction){
@@ -560,6 +548,51 @@ public class LogicGame extends BasicGame{
 			break;
 		}
 	}
+
+	//Called when an inner card is picked
+	void cardPicked(int index){
+		//Get the card picked
+		int pick = isPickingHearts() ? hearts[index] : spades[index];
+		//Send the card picked
+		if(processor != null){
+			Map<String, String> args = new HashMap<String, String>();
+			args.put("index", String.valueOf(currentPicking));
+			args.put("pick", String.valueOf(pick));
+			processor.invokeMethod("guess", args);
+		}
+		else{
+			guess(currentPicking, pick);
+		}
+		//Stops card picking mode
+		cardPicking = false;
+	}
+
+	//Returns true if the card currently picking is of the hearts suit
+	boolean isPickingHearts(){
+		return Card.getSuit(cards[currentPicking]).equals("Hearts");
+	}
+
+	//Returns true if the card at index is the player's own
+	boolean isOwn(int index){
+		return untranspose(index) / cardsPerPlayer == 0;
+	}
+	
+	//Returns true if the card at index is the player's partner's
+	boolean isPartner(int index){
+		int playerNum = untranspose(index) / cardsPerPlayer;
+		return playerNum > 0 && playerNum % 2 == 0;
+	}
+	
+	//Returns true if the card at index is the player's opponent's
+	boolean isOpponent(int index){
+		int playerNum = untranspose(index) / cardsPerPlayer;
+		return playerNum % 2 == 1;
+	}
+	
+	//Returns the index of the player's next partner
+	int nextPartner(int player){
+		return (player + 2) % players;
+	}
 	
 	//Go to the next action that is valid
 	void goToNextAction(boolean correctGuess){
@@ -601,31 +634,31 @@ public class LogicGame extends BasicGame{
 				break;
 			}
 			//Checks if the action is valid, ending if it is
-			done = validateAction(rightBefore);
+			done = isActionValid(rightBefore);
 			rightBefore = false;
 		}
 	}
 	
 	//Returns true an action is valid
-	boolean validateAction(boolean rightBefore){
+	boolean isActionValid(boolean rightBefore){
 		switch(currentAction){
 		case ACTION_PASSING:
 			//Invalid if all of the current player's partner's cards are face up
-			return !allFaceUp(nextPartner(currentTurn));
+			return !isAllFaceUp(nextPartner(currentTurn));
 		case ACTION_PASS_RECEIVING:
 			//Invalid if the previous action is not directly preceding
 			return rightBefore;
 		case ACTION_GUESSING:
 			//Invalid if all of the opponent's cards are face up
 			for(int i = 1; i < players; i += 2){
-				if(!allFaceUp((currentTurn + i) % players)){
+				if(!isAllFaceUp((currentTurn + i) % players)){
 					return true;
 				}
 			}
 			return false;
 		case ACTION_REVEALING:
 			//Invalid if all of the current player's cards are face up
-			return !allFaceUp(currentTurn);
+			return !isAllFaceUp(currentTurn);
 		case ACTION_CLAIMING:
 			//Always valid
 			return true;
@@ -634,13 +667,34 @@ public class LogicGame extends BasicGame{
 	}
 	
 	//Returns true if all of a player's cards are face up
-	boolean allFaceUp(int player){
+	boolean isAllFaceUp(int player){
 		for(int i = player * cardsPerPlayer; i < (player + 1) * cardsPerPlayer; i++){
 			if(!faceUp[i]){
 				return false;
 			}
 		}
 		return true;
+	}
+
+	//Remote method
+	//Called when the card data is received upon connection
+	public void receiveCardData(int[] array, int playerNumber) {
+		this.playerNumber = playerNumber;
+		//Copies the cards into the array
+		System.arraycopy(array, 0, cards, 0, cards.length);
+		for(int i = 0; i < rects.length; i++){
+			//Resets the collision rectangles
+			rects[i] = null;
+		}
+		for(int i = 0; i < faceUp.length; i++){
+			//Turns all cards face down
+			faceUp[i] = false;
+		}
+		//Turn off card picking mode
+		cardPicking = false;
+		//Resets the turn and the action
+		currentTurn = 0;
+		currentAction = ACTION_PASSING;
 	}
 
 	//Remote method
@@ -744,29 +798,6 @@ public class LogicGame extends BasicGame{
 		timeCounter = DEFAULT_TIME;
 	}
 
-	//Called when an inner card is picked
-	void cardPicked(int index){
-		//Get the card picked
-		int pick = isPickingHearts() ? hearts[index] : spades[index];
-		//Send the card picked
-		if(processor != null){
-			Map<String, String> args = new HashMap<String, String>();
-			args.put("index", String.valueOf(currentPicking));
-			args.put("pick", String.valueOf(pick));
-			processor.invokeMethod("guess", args);
-		}
-		else{
-			guess(currentPicking, pick);
-		}
-		//Stops card picking mode
-		cardPicking = false;
-	}
-	
-	//Returns true if the card currently picking is of the hearts suit
-	boolean isPickingHearts(){
-		return Card.getSuit(cards[currentPicking]).equals("Hearts");
-	}
-	
 	//Called when a key button is pressed
 	//Used for the console
 	@Override
@@ -784,9 +815,10 @@ public class LogicGame extends BasicGame{
 			consoleLine = consoleLine + c;
 		}
 	}
-	
+
 	//Processes a console command (string)
 	public void processConsole(String command){
+		//TODO create commands where one client can control multiple players
 		try{
 			System.out.println("Running command: " + command);
 			String[] args = command.split(" ");
@@ -864,27 +896,6 @@ public class LogicGame extends BasicGame{
 		return faceUp;
 	}
 
-	//Remote method
-	//Called when the card data is received upon connection
-	public void setCardDataReceived(int[] array, int playerNumber) {
-		this.playerNumber = playerNumber;
-		//Copies the cards into the array
-		System.arraycopy(array, 0, cards, 0, cards.length);
-		for(int i = 0; i < rects.length; i++){
-			//Resets the collision rectangles
-			rects[i] = null;
-		}
-		for(int i = 0; i < faceUp.length; i++){
-			//Turns all cards face down
-			faceUp[i] = false;
-		}
-		//Turn off card picking mode
-		cardPicking = false;
-		//Resets the turn and the action
-		currentTurn = 0;
-		currentAction = ACTION_PASSING;
-	}
-	
 	//Transposes a card from the real index to the index of the current player
 	public int transpose(int index){
 		return (index + playerNumber * cardsPerPlayer) % (players * cardsPerPlayer);
