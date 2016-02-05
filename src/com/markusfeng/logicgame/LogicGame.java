@@ -37,6 +37,19 @@ import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
  *     Otherwise, active player chooses a card that he/she owns and flips -> send INDEX to all (secure: SEND VALUE to all)
  *   Move on to next player as active player
  * 
+ * Feedback:
+ *   Add instructions screen
+ *     Turn order (anti-clockwise)
+ *   Make "2 player mode"
+ *     Each turn:
+ *       Active player player picks a card of its conjugate (partner)
+ *       Active player looks at the card
+ *       Active player picks a card of the enemy or the enemy's conjugate
+ *         If card correct, flip
+ *         Otherwise, active player chooses a card that he/she owns and flips
+ *   Add chat
+ *   Make player limiter
+ * 
  * @author Markus Feng
  */
 @Version(value = "0.0.0.2")
@@ -61,6 +74,9 @@ public class LogicGame extends BasicGame{
 	int currentTurn = 0;
 	//The number of the current player
 	int playerNumber = 0;
+	
+	//Is currently in two player mode
+	boolean twoPlayerMode;
 	
 	final int players = 4;
 	final int cardsPerPlayer = 6;
@@ -114,6 +130,7 @@ public class LogicGame extends BasicGame{
 	
 	String consoleLine = "";
 	String tempDisplay = "";
+	String winLoseDisplay = "";
 	
 	SpriteSheet sheet; 
 	
@@ -366,9 +383,17 @@ public class LogicGame extends BasicGame{
 	//Displays the currently ongoing action
 	String getSecondLine(){
 		String display = "";
+		if(currentTurn < 0){
+			return winLoseDisplay;
+		}
 		switch(currentAction){
 		case ACTION_PASSING:
-			display += getPlayerNameForNumber(nextPartner(currentTurn)) + " is choosing a card to pass.";
+			if(twoPlayerMode){
+				display += getPlayerNameForNumber(currentTurn) + " is choosing a card to pass.";
+			}
+			else{
+				display += getPlayerNameForNumber(nextPartner(currentTurn)) + " is choosing a card to pass.";
+			}
 			break;
 		case ACTION_PASS_RECEIVING:
 			display += getPlayerNameForNumber(currentTurn) + " is recieving the pass.";
@@ -451,13 +476,26 @@ public class LogicGame extends BasicGame{
 	void cardClicked(int index){
 		switch(currentAction){
 		case ACTION_PASSING:
-			//Only allow the current player's partner to pass
-			if(playerNumber != nextPartner(currentTurn)){
-				return;
+			if(twoPlayerMode){
+				//Current player picks card to pass
+				//Only allow the current player to pass
+				if(playerNumber != currentTurn){
+					return;
+				}
+				//Only allow a player to pick his or her own cards
+				if(!isPartner(index)){
+					return;
+				}
 			}
-			//Only allow a player to pick his or her own cards
-			if(!isOwn(index)){
-				return;
+			else{
+				//Only allow the current player's partner to pass
+				if(playerNumber != nextPartner(currentTurn)){
+					return;
+				}
+				//Only allow a player to pick his or her own cards
+				if(!isOwn(index)){
+					return;
+				}
 			}
 			//Only allow face down cards
 			if(faceUp[index]){
@@ -616,7 +654,7 @@ public class LogicGame extends BasicGame{
 					//Go to the passing action
 					currentAction = ACTION_PASSING;
 					//Increment the turn
-					currentTurn = (currentTurn + 1) % players;
+					goToNextTurn();
 				}
 				else{
 					//Go to the revealing action
@@ -627,7 +665,7 @@ public class LogicGame extends BasicGame{
 				//Go to the passing action
 				currentAction = ACTION_PASSING;
 				//Increment the turn
-				currentTurn = (currentTurn + 1) % players;
+				goToNextTurn();
 				break;
 			case ACTION_CLAIMING:
 				//Stay on the current action
@@ -636,6 +674,15 @@ public class LogicGame extends BasicGame{
 			//Checks if the action is valid, ending if it is
 			done = isActionValid(rightBefore);
 			rightBefore = false;
+		}
+	}
+	
+	void goToNextTurn(){
+		if(twoPlayerMode){
+			currentTurn = (currentTurn + 1) % 2;
+		}
+		else{
+			currentTurn = (currentTurn + 1) % players;
 		}
 	}
 	
@@ -678,8 +725,9 @@ public class LogicGame extends BasicGame{
 
 	//Remote method
 	//Called when the card data is received upon connection
-	public void receiveCardData(int[] array, int playerNumber) {
+	public void receiveCardData(int[] array, int playerNumber, boolean twoPlayerMode) {
 		this.playerNumber = playerNumber;
+		this.twoPlayerMode = twoPlayerMode;
 		//Copies the cards into the array
 		System.arraycopy(array, 0, cards, 0, cards.length);
 		for(int i = 0; i < rects.length; i++){
@@ -752,7 +800,7 @@ public class LogicGame extends BasicGame{
 				}
 				if(passing){
 					//Display winning message
-					tempDisplay = getPlayerNameForNumber(currentTurn) + " wins!";
+					winLoseDisplay = getPlayerNameForNumber(currentTurn) + " wins!";
 					//Prevents game progress
 					currentTurn = -1;
 				}
@@ -765,7 +813,7 @@ public class LogicGame extends BasicGame{
 			}
 			//If claiming, loses the game
 			else if(currentAction == ACTION_CLAIMING){
-				tempDisplay = getPlayerNameForNumber(currentTurn) + " loses!";
+				winLoseDisplay = getPlayerNameForNumber(currentTurn) + " loses!";
 				currentTurn = -1;
 			}
 		}
@@ -789,7 +837,7 @@ public class LogicGame extends BasicGame{
 		for(int i = player * cardsPerPlayer; i < (player + 1) * cardsPerPlayer; i++){
 			faceUp[i] = true;
 		}
-		goToNextAction(true);
+		currentAction = ACTION_CLAIMING;
 		return "complete";
 	}
 	
@@ -832,6 +880,16 @@ public class LogicGame extends BasicGame{
 					//throws NumberFormatException
 					port = Integer.parseInt(args[1]);
 				}
+				twoPlayerMode = false;
+				startServer(port);
+			}
+			else if(name.equalsIgnoreCase("/server2")){
+				int port = DEFAULT_PORT;
+				if(args.length >= 2){
+					//throws NumberFormatException
+					port = Integer.parseInt(args[1]);
+				}
+				twoPlayerMode = true;
 				startServer(port);
 			}
 			else if(name.equalsIgnoreCase("/client")){
@@ -918,5 +976,9 @@ public class LogicGame extends BasicGame{
 	//Returns if another version of the game is compatible with the current version
 	public boolean compatibleVersion(String version){
 		return getVersion().equals(version);
+	}
+
+	public boolean isTwoPlayerMode() {
+		return twoPlayerMode;
 	}
 }

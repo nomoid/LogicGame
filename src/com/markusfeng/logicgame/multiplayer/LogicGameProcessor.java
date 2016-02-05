@@ -118,6 +118,7 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 		if(isServer){
 			data.put("gameversion", game.getVersion());
 			data.put("carddata", Commands.fromArray(game.getCards()));
+			data.put("twoplayermode", String.valueOf(game.isTwoPlayerMode()));
 			synchronized(players){
 				data.put("playernumber", String.valueOf(players.size()));
 				try {
@@ -144,14 +145,15 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 	protected void process(Command command) {
 		if(command.getName().equalsIgnoreCase("initialize")){
 			String version = command.getArguments().get("gameversion");
-			int[] array = Commands.toIntArray(command.getArguments().get("carddata"));
-			int playerNumber = Integer.parseInt(command.getArguments().get("playernumber"));
 			if(!game.compatibleVersion(version)){
 				//Shutdown
 				close();
 				throw new IllegalArgumentException("Incompatible version");
 			}
-			game.receiveCardData(array, playerNumber);
+			int[] array = Commands.toIntArray(command.getArguments().get("carddata"));
+			int playerNumber = Integer.parseInt(command.getArguments().get("playernumber"));
+			boolean twoPlayerMode = Boolean.parseBoolean(command.getArguments().get("twoplayermode"));
+			game.receiveCardData(array, playerNumber, twoPlayerMode);
 		}
 	}
 	
