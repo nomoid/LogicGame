@@ -36,17 +36,18 @@ import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
  *     If card correct, flip (secure: send VALUE to all)
  *     Otherwise, active player chooses a card that he/she owns and flips -> send INDEX to all (secure: SEND VALUE to all)
  *   Move on to next player as active player
+ *   
+ * "2 player mode"
+ *   Each turn:
+ *     Active player player picks a card of its conjugate (partner)
+ *     Active player looks at the card
+ *     Active player picks a card of the enemy or the enemy's conjugate
+ *       If card correct, flip
+ *       Otherwise, active player chooses a card that he/she owns and flips
  * 
  * Feedback:
  *   Add instructions screen
  *     Turn order (anti-clockwise)
- *   Make "2 player mode"
- *     Each turn:
- *       Active player player picks a card of its conjugate (partner)
- *       Active player looks at the card
- *       Active player picks a card of the enemy or the enemy's conjugate
- *         If card correct, flip
- *         Otherwise, active player chooses a card that he/she owns and flips
  *   Add chat
  *   Make player limiter
  * 
@@ -102,6 +103,9 @@ public class LogicGame extends BasicGame{
 	//Center cards for picking
 	final CollisionRect[] centerRects = new CollisionRect[cardsPerPlayer * players / 2];
 	
+	//If the current player's cards are being revealed
+	//Toggled by the reveal button
+	boolean revealing;
 	//The reveal button collision box
 	CollisionRect reveal;
 	//The claim button collision box
@@ -119,11 +123,6 @@ public class LogicGame extends BasicGame{
 	//Number of "spacings" to put on either side of the cards,
 	//if one spacing is the distance between two cards
 	int sidePadding = 3;
-	
-	//Default time to reveal when pressing "reveal self"
-	static final int DEFAULT_TIME = 3000;
-	//Current amount of time left in "reveal self" mode (ms)
-	int timeCounter = DEFAULT_TIME;
 	
 	//TODO Warning -> not closed yet
 	Set<Closeable> closeables;
@@ -223,8 +222,8 @@ public class LogicGame extends BasicGame{
 		renderString(g, getSecondLine(), gc.getWidth() / 2, gc.getHeight() / 4 + 20);
 		renderString(g, getThirdLine(), gc.getWidth() / 2, gc.getHeight() / 4 + 40);
 		//Renders the "reveal your own cards" button
-		CollisionRect revealButton = renderButton(g, "Reveal Your Own Cards", gc.getWidth() / 3, gc.getHeight() / 4, 
-				200, 40, Color.green, Color.black);
+		CollisionRect revealButton = renderButton(g, revealing ? "Hide Your Own Cards" : "Reveal Your Own Cards", 
+				gc.getWidth() / 3, gc.getHeight() / 4, 200, 40, Color.green, Color.black);
 		if(reveal == null){
 			reveal = revealButton;
 		}
@@ -332,7 +331,7 @@ public class LogicGame extends BasicGame{
 			}
 		}
 		//Renders face down or face up card based on whether the face down variable is set to true
-		if(!faceUp[currentIndex] && (timeCounter == 0 || !isOwn(currentIndex))){
+		if(!faceUp[currentIndex] && (!revealing || !isOwn(currentIndex))){
 			g.drawImage(getBackFromSheet(Card.getColor(currentCard).equals("Red") ? 0 : 3), x, y);
 		}
 		else{
@@ -426,14 +425,8 @@ public class LogicGame extends BasicGame{
 	//Updates the game's state
 	@Override
 	public void update(GameContainer gc, int delta) throws SlickException {
-		//If the time of "reveal your own cards" is greater than zero
-		//lower it, but not to less than zero
-		if(timeCounter > 0){
-			timeCounter -= delta;
-		}
-		if(timeCounter < 0){
-			timeCounter = 0;
-		}
+		//Currently all game state changes are based on
+		//events so the update method is empty
 	}
 	
 	//Called when a mounse button is clicked
@@ -751,6 +744,15 @@ public class LogicGame extends BasicGame{
 		faceUp[index] = !faceUp[index];
 		return "complete";
 	}
+	
+
+	//Remote method
+	//Receives a message sent by a player
+	public String message(int player, String content) {
+		//TODO implement actual message system
+		System.out.println("Message from " + getPlayerNameForNumber(player) + ": " + content);
+		return "complete";
+	}
 
 	//Remote method
 	//Called after a card has been chosen to be passed
@@ -843,7 +845,7 @@ public class LogicGame extends BasicGame{
 	
 	//Reveals all of your own cards
 	public void revealSelf() {
-		timeCounter = DEFAULT_TIME;
+		revealing = !revealing;
 	}
 
 	//Called when a key button is pressed
@@ -868,45 +870,57 @@ public class LogicGame extends BasicGame{
 	public void processConsole(String command){
 		//TODO create commands where one client can control multiple players
 		try{
-			System.out.println("Running command: " + command);
 			String[] args = command.split(" ");
 			if(args.length == 0){
 				return;
 			}
 			String name = args[0];
-			if(name.equalsIgnoreCase("/server")){
-				int port = DEFAULT_PORT;
-				if(args.length >= 2){
-					//throws NumberFormatException
-					port = Integer.parseInt(args[1]);
+			if(name.startsWith("/")){
+				System.out.println("Running command: " + command);
+				if(name.equalsIgnoreCase("/server")){
+					int port = DEFAULT_PORT;
+					if(args.length >= 2){
+						//throws NumberFormatException
+						port = Integer.parseInt(args[1]);
+					}
+					twoPlayerMode = false;
+					startServer(port);
 				}
-				twoPlayerMode = false;
-				startServer(port);
-			}
-			else if(name.equalsIgnoreCase("/server2")){
-				int port = DEFAULT_PORT;
-				if(args.length >= 2){
-					//throws NumberFormatException
-					port = Integer.parseInt(args[1]);
+				else if(name.equalsIgnoreCase("/server2")){
+					int port = DEFAULT_PORT;
+					if(args.length >= 2){
+						//throws NumberFormatException
+						port = Integer.parseInt(args[1]);
+					}
+					twoPlayerMode = true;
+					startServer(port);
 				}
-				twoPlayerMode = true;
-				startServer(port);
-			}
-			else if(name.equalsIgnoreCase("/client")){
-				String host = "localhost";
-				int port = DEFAULT_PORT;
-				if(args.length >= 2){
-					host = args[1];
+				else if(name.equalsIgnoreCase("/client")){
+					String host = "localhost";
+					int port = DEFAULT_PORT;
+					if(args.length >= 2){
+						host = args[1];
+					}
+					if(args.length >= 3){
+						//throws NumberFormatException
+						port = Integer.parseInt(args[2]);
+					}
+					startClient(host, port);
 				}
-				if(args.length >= 3){
-					//throws NumberFormatException
-					port = Integer.parseInt(args[2]);
+				else{
+					System.out.println("Invalid command: " + command);
 				}
-				startClient(host, port);
 			}
 			else{
-				//TODO implement chat?
-				System.out.println("Invalid command: " + command);
+				if(processor == null){
+					message(playerNumber, command);
+				}
+				else{
+					Map<String, String> data = new HashMap<String, String>();
+					data.put("playernumber", String.valueOf(playerNumber));
+					data.put("content", command);
+					processor.invokeMethod("message", data);
+				}
 			}
 		}
 		catch(Exception e){

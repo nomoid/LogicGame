@@ -109,6 +109,17 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 			}
 			
 		});
+		addMethod("message", new RemoteMethod(){
+
+			@Override
+			public String apply(Map<String, String> parameters) {
+				int player = Integer.parseInt(parameters.get("playernumber"));
+				String content = parameters.get("content");
+				LogicGame game = LogicGameProcessor.this.game;
+				return game.message(player, content);
+			}
+			
+		});
 	}
 
 	@Override
