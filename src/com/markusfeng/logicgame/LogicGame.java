@@ -1,5 +1,6 @@
 package com.markusfeng.logicgame;
 
+import java.awt.EventQueue;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -8,9 +9,13 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
+
+import javax.swing.JFrame;
 
 import org.newdawn.slick.AppGameContainer;
 import org.newdawn.slick.BasicGame;
@@ -24,6 +29,8 @@ import org.newdawn.slick.SpriteSheet;
 
 import com.markusfeng.Shared.Version;
 import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
+import com.markusfeng.modules.logging.AbstractConsoleFrame;
+import com.markusfeng.modules.logging.CustomLevel;
 
 /**
  * The engine driving the logic game
@@ -53,7 +60,7 @@ import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
  * 
  * @author Markus Feng
  */
-@Version(value = "0.0.0.2")
+@Version(value = "0.0.0.3")
 public class LogicGame extends BasicGame{
 	
 	//Default server port (random number)
@@ -131,6 +138,10 @@ public class LogicGame extends BasicGame{
 	String tempDisplay = "";
 	String winLoseDisplay = "";
 	
+	//Last few lines on chat
+	LinkedList<String> chatHistory;
+	final int historySize = 3;
+	
 	SpriteSheet sheet; 
 	
 	//Processor for multiplayer
@@ -158,6 +169,8 @@ public class LogicGame extends BasicGame{
 		closeables = new HashSet<Closeable>();
 		//Creates the card sheets
 		sheet = new SpriteSheet(new Image("resources" + File.separator + "poker_120.png"), cardWidth, cardHeight);
+		//Creates the chat history linked list
+		chatHistory = new LinkedList<String>();
 		//Generates the cards (shuffling them), then deals the cards out
 		dealCards(generateCards());
 	}
@@ -221,6 +234,14 @@ public class LogicGame extends BasicGame{
 		renderString(g, getFirstLine(), gc.getWidth() / 2, gc.getHeight() / 4);
 		renderString(g, getSecondLine(), gc.getWidth() / 2, gc.getHeight() / 4 + 20);
 		renderString(g, getThirdLine(), gc.getWidth() / 2, gc.getHeight() / 4 + 40);
+		//Renders the last few lines of chat history
+		int n = 0;
+		int tempSpacing = getSpacing(gc);
+		for(String s : chatHistory){
+			g.drawString(s, gc.getWidth() - tempSpacing * sidePadding - 
+					(gc.getWidth() - gc.getHeight()) / 2 + 10, 10 + 20 * n);
+			n++;
+		}
 		//Renders the "reveal your own cards" button
 		CollisionRect revealButton = renderButton(g, revealing ? "Hide Your Own Cards" : "Reveal Your Own Cards", 
 				gc.getWidth() / 3, gc.getHeight() / 4, 200, 40, Color.green, Color.black);
@@ -242,8 +263,7 @@ public class LogicGame extends BasicGame{
 				//Current index in the cards and faceDown arrays
 				int currentIndex = transpose(i * cardsPerPlayer + j);
 				//Calculate the spacing between each card
-				int spacing = (gc.getHeight() - (cardsPerPlayer) * cardWidth) / 
-						(cardsPerPlayer + sidePadding * 2 - 1);
+				int spacing = getSpacing(gc);
 				int x;
 				int y;
 				int frameWidth = gc.getWidth();
@@ -281,8 +301,7 @@ public class LogicGame extends BasicGame{
 					//Current index in the cards and faceDown arrays
 					int currentIndex = i * cardsPerPlayer + j;
 					//Calculate the spacing between each card
-					int spacing = (gc.getHeight() - (cardsPerPlayer) * cardWidth) / 
-							(cardsPerPlayer + sidePadding * 2 - 1);
+					int spacing = getSpacing(gc);
 					int x;
 					int y;
 					int frameWidth = gc.getWidth();
@@ -360,6 +379,12 @@ public class LogicGame extends BasicGame{
 	void renderString(Graphics g, String text, int x, int y){
 		g.drawString(text, x - getTextWidth(g, text) / 2, 
 				y);
+	}
+	
+	//Gets the spacing for the rendering
+	int getSpacing(GameContainer gc){
+		return (gc.getHeight() - (cardsPerPlayer) * cardWidth) / 
+		(cardsPerPlayer + sidePadding * 2 - 1);
 	}
 
 	//Gets the width of a string in a graphics context
@@ -745,13 +770,52 @@ public class LogicGame extends BasicGame{
 		return "complete";
 	}
 	
+	boolean loggerStarted;
+	Logger log = Logger.getLogger("logic");
 
 	//Remote method
 	//Receives a message sent by a player
-	public String message(int player, String content) {
-		//TODO implement actual message system
-		System.out.println("Message from " + getPlayerNameForNumber(player) + ": " + content);
+	public String message(final int player, final String content) {
+		EventQueue.invokeLater(new Runnable(){
+			
+			@Override
+			public void run(){
+				if(!loggerStarted){
+					loggerStarted = true;
+					JFrame frame = new AbstractConsoleFrame(log){
+			
+						private static final long serialVersionUID = 5273594771840765904L;
+			
+						@Override
+						protected void process(String s) {
+							if(processor == null){
+								message(playerNumber, s);
+							}
+							else{
+								Map<String, String> data = new HashMap<String, String>();
+								data.put("playernumber", String.valueOf(playerNumber));
+								data.put("content", s);
+								processor.invokeMethod("message", data);
+							}
+						}
+						
+					};
+					frame.setTitle("Chat");
+					frame.setVisible(true);
+				}
+				pushMessage(getPlayerNameForNumber(player) + ": " + content);
+			}
+		});
 		return "complete";
+	}
+	
+	//Pushes the actual message to the logging system
+	void pushMessage(String message){
+		log.log(CustomLevel.NOMESSAGE, message);
+		chatHistory.addLast(message);
+		if(chatHistory.size() > historySize){
+			chatHistory.remove();
+		}
 	}
 
 	//Remote method
@@ -934,7 +998,6 @@ public class LogicGame extends BasicGame{
 			return;
 		}
 		System.out.println("Server started");
-		processor = LogicGameProcessor.startServer(this, port, closeables);
 	}
 	
 	//Starts the client
