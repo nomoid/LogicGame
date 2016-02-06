@@ -770,6 +770,7 @@ public class LogicGame extends BasicGame{
 		return "complete";
 	}
 	
+	JFrame loggerFrame;
 	boolean loggerStarted;
 	Logger log = Logger.getLogger("logic");
 
@@ -782,7 +783,7 @@ public class LogicGame extends BasicGame{
 			public void run(){
 				if(!loggerStarted){
 					loggerStarted = true;
-					JFrame frame = new AbstractConsoleFrame(log){
+					loggerFrame = new AbstractConsoleFrame(log){
 			
 						private static final long serialVersionUID = 5273594771840765904L;
 			
@@ -800,8 +801,11 @@ public class LogicGame extends BasicGame{
 						}
 						
 					};
-					frame.setTitle("Chat");
-					frame.setVisible(true);
+					loggerFrame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+					loggerFrame.setTitle("Chat");
+					loggerFrame.setFocusableWindowState(false);
+					loggerFrame.setVisible(true);
+					loggerFrame.setFocusableWindowState(true);
 				}
 				pushMessage(getPlayerNameForNumber(player) + ": " + content);
 			}
@@ -998,6 +1002,7 @@ public class LogicGame extends BasicGame{
 			return;
 		}
 		System.out.println("Server started");
+		processor = LogicGameProcessor.startServer(this, port, closeables);
 	}
 	
 	//Starts the client
