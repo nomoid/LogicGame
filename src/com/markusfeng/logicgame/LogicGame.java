@@ -744,6 +744,14 @@ public class LogicGame extends BasicGame{
 	//Remote method
 	//Called when the card data is received upon connection
 	public void receiveCardData(int[] array, int playerNumber, boolean twoPlayerMode) {
+		int tempPlayers = twoPlayerMode ? 2 : players;
+		//Limits the number of players that can join
+		if(playerNumber >= tempPlayers){
+			//Resets the processor
+			processor.close();
+			processor = null;
+			return;
+		}
 		this.playerNumber = playerNumber;
 		this.twoPlayerMode = twoPlayerMode;
 		//Copies the cards into the array
