@@ -28,6 +28,7 @@ import org.newdawn.slick.SlickException;
 import org.newdawn.slick.SpriteSheet;
 
 import com.markusfeng.Shared.Version;
+import com.markusfeng.logicgame.multiplayer.Commands;
 import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
 import com.markusfeng.modules.logging.AbstractConsoleFrame;
 import com.markusfeng.modules.logging.CustomLevel;
@@ -103,8 +104,6 @@ public class LogicGame extends BasicGame{
 	//An array that is always face up for inner cards
 	final boolean[] alwaysFaceUp = new boolean[players * cardsPerPlayer / 2];
 	
-	//Is currently "claiming" (finishing up a game)
-	boolean claiming = false;
 	//Is currently picking a card
 	boolean cardPicking = false;
 	//Center cards for picking
@@ -754,6 +753,12 @@ public class LogicGame extends BasicGame{
 		}
 		this.playerNumber = playerNumber;
 		this.twoPlayerMode = twoPlayerMode;
+		reset(array);
+	}
+	
+	//Remote method
+	//Resets the game state to the cards defined by the array
+	public String reset(int[] array){
 		//Copies the cards into the array
 		System.arraycopy(array, 0, cards, 0, cards.length);
 		for(int i = 0; i < rects.length; i++){
@@ -769,6 +774,13 @@ public class LogicGame extends BasicGame{
 		//Resets the turn and the action
 		currentTurn = 0;
 		currentAction = ACTION_PASSING;
+		//Resets the receive index and guess index
+		receiveIndex = 0;
+		guessIndex = -1;
+		//Resets the displays
+		tempDisplay = "";
+		winLoseDisplay = "";
+		return "complete";
 	}
 
 	//Remote method
@@ -982,6 +994,18 @@ public class LogicGame extends BasicGame{
 						port = Integer.parseInt(args[2]);
 					}
 					startClient(host, port);
+				}
+				else if(name.equalsIgnoreCase("/restart")){
+					//Generates the cards (shuffling them), then deals the cards out
+					dealCards(generateCards());
+					if(processor == null){
+						reset(cards);
+					}
+					else{
+						Map<String, String> data = new HashMap<String, String>();
+						data.put("carddata", Commands.fromArray(getCards()));
+						processor.invokeMethod("reset", data);
+					}
 				}
 				else{
 					System.out.println("Invalid command: " + command);

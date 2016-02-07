@@ -120,6 +120,16 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 			}
 			
 		});
+		addMethod("reset", new RemoteMethod(){
+
+			@Override
+			public String apply(Map<String, String> parameters) {
+				int[] array = Commands.toIntArray(parameters.get("carddata"));
+				LogicGame game = LogicGameProcessor.this.game;
+				return game.reset(array);
+			}
+			
+		});
 	}
 
 	@Override
