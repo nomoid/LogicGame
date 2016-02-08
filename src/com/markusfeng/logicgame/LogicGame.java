@@ -77,6 +77,17 @@ public class LogicGame extends BasicGame{
 	static final int ACTION_REVEALING = 3;
 	static final int ACTION_CLAIMING = 4;
 	
+	//The messages to display when the /help command is invoked
+	static final String[] HELP_MESSAGE = {
+			"The following are the console commands",
+			"/help: displays this message",
+			"/server [port]: starts the server (on the specified port)",
+			"/client [host] [port]: starts the client (on the given host and the specified port)",
+			"/server2 [port]: starts the server on two player mode (on the specified port)",
+			"/restart: restarts the server",
+			"(no slash): chat to all players"
+	};
+	
 	//The current action, as specified by Actions
 	int currentAction = 0;
 	//The number of the player who has the current turn
@@ -442,8 +453,14 @@ public class LogicGame extends BasicGame{
 	
 	//Gets the player name for the given player number
 	String getPlayerNameForNumber(int number){
-		//Returns the number plus one (e.g. player 0 is displayed as Player 1)
-		return "Player " + (number + 1);
+		if(number < 0){
+			//Returns "System"
+			return "System";
+		}
+		else{
+			//Returns the number plus one (e.g. player 0 is displayed as Player 1)
+			return "Player " + (number + 1);
+		}
 	}
 	
 	//Updates the game's state
@@ -827,18 +844,20 @@ public class LogicGame extends BasicGame{
 					loggerFrame.setVisible(true);
 					loggerFrame.setFocusableWindowState(true);
 				}
-				pushMessage(getPlayerNameForNumber(player) + ": " + content);
+				pushMessage(getPlayerNameForNumber(player) + ": " + content, player >= 0);
 			}
 		});
 		return "complete";
 	}
 	
 	//Pushes the actual message to the logging system
-	void pushMessage(String message){
+	void pushMessage(String message, boolean toHistory){
 		log.log(CustomLevel.NOMESSAGE, message);
-		chatHistory.addLast(message);
-		if(chatHistory.size() > historySize){
-			chatHistory.remove();
+		if(toHistory){
+			chatHistory.addLast(message);
+			if(chatHistory.size() > historySize){
+				chatHistory.remove();
+			}
 		}
 	}
 
@@ -965,7 +984,12 @@ public class LogicGame extends BasicGame{
 			String name = args[0];
 			if(name.startsWith("/")){
 				System.out.println("Running command: " + command);
-				if(name.equalsIgnoreCase("/server")){
+				if(name.equalsIgnoreCase("/help")){
+					for(String s : HELP_MESSAGE){
+						message(-1, s);
+					}
+				}
+				else if(name.equalsIgnoreCase("/server")){
 					int port = DEFAULT_PORT;
 					if(args.length >= 2){
 						//throws NumberFormatException
