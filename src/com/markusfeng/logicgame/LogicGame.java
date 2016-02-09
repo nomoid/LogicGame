@@ -28,6 +28,7 @@ import org.newdawn.slick.Input;
 import org.newdawn.slick.SlickException;
 import org.newdawn.slick.SpriteSheet;
 import org.newdawn.slick.TrueTypeFont;
+import org.newdawn.slick.opengl.SlickCallable;
 
 import com.markusfeng.Shared.Version;
 import com.markusfeng.logicgame.multiplayer.Commands;
@@ -154,9 +155,11 @@ public class LogicGame extends BasicGame{
 	LinkedList<String> chatHistory;
 	final int historySize = 3;
 	
-	SpriteSheet sheet; 
-	
+	SpriteSheet sheet;
 	TrueTypeFont defaultFont;
+	
+	boolean initializationComplete = false;
+	boolean initializationStarted = false;
 	
 	//Processor for multiplayer
 	protected LogicGameProcessor processor;
@@ -179,16 +182,13 @@ public class LogicGame extends BasicGame{
 	
 	@Override
 	public void init(GameContainer gc) throws SlickException {
-		//Makes the font of the graphics system
-		defaultFont = new TrueTypeFont(new Font("Calibri", Font.PLAIN, 20), true);
 		//Creates the set of Closeables to be cleaned up
 		closeables = new HashSet<Closeable>();
-		//Creates the card sheets
-		sheet = new SpriteSheet(new Image("resources" + File.separator + "poker_120.png"), cardWidth, cardHeight);
 		//Creates the chat history linked list
 		chatHistory = new LinkedList<String>();
 		//Generates the cards (shuffling them), then deals the cards out
 		dealCards(generateCards());
+		//Lengthy initialization tasks (e.g. loading resources) are performed in the update method
 	}
 	
 	//Returns a list of cards to be used in the Logic game
@@ -242,6 +242,10 @@ public class LogicGame extends BasicGame{
 	//Renders the game
 	@Override
 	public void render(GameContainer gc, Graphics g) throws SlickException {
+		if(!initializationComplete){
+			renderString(g, "Loading...", gc.getWidth() / 2, gc.getHeight() / 2);
+			return;
+		}
 		g.setBackground(Color.black);
 		g.setColor(Color.white);
 		g.setFont(defaultFont);
@@ -473,8 +477,18 @@ public class LogicGame extends BasicGame{
 	//Updates the game's state
 	@Override
 	public void update(GameContainer gc, int delta) throws SlickException {
+		//Initialization
+		if(!initializationStarted){
+			initializationStarted = true;
+			//Creates the card sheets
+			sheet = new SpriteSheet(new Image("resources" + File.separator + "poker_120.png"), 
+					cardWidth, cardHeight);
+			//Makes the font of the graphics system
+			defaultFont = new TrueTypeFont(new Font("Calibri", Font.PLAIN, 20), true);
+			initializationComplete = true;
+		}
 		//Currently all game state changes are based on
-		//events so the update method is empty
+		//events so the update method has no state changes
 	}
 	
 	//Called when a mounse button is clicked
