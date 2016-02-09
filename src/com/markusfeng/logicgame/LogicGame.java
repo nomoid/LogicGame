@@ -1,6 +1,7 @@
 package com.markusfeng.logicgame;
 
 import java.awt.EventQueue;
+import java.awt.Font;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +27,7 @@ import org.newdawn.slick.Image;
 import org.newdawn.slick.Input;
 import org.newdawn.slick.SlickException;
 import org.newdawn.slick.SpriteSheet;
+import org.newdawn.slick.TrueTypeFont;
 
 import com.markusfeng.Shared.Version;
 import com.markusfeng.logicgame.multiplayer.Commands;
@@ -154,6 +156,8 @@ public class LogicGame extends BasicGame{
 	
 	SpriteSheet sheet; 
 	
+	TrueTypeFont defaultFont;
+	
 	//Processor for multiplayer
 	protected LogicGameProcessor processor;
 
@@ -175,6 +179,8 @@ public class LogicGame extends BasicGame{
 	
 	@Override
 	public void init(GameContainer gc) throws SlickException {
+		//Makes the font of the graphics system
+		defaultFont = new TrueTypeFont(new Font("Calibri", Font.PLAIN, 20), true);
 		//Creates the set of Closeables to be cleaned up
 		closeables = new HashSet<Closeable>();
 		//Creates the card sheets
@@ -238,6 +244,7 @@ public class LogicGame extends BasicGame{
 	public void render(GameContainer gc, Graphics g) throws SlickException {
 		g.setBackground(Color.black);
 		g.setColor(Color.white);
+		g.setFont(defaultFont);
 		g.drawString("Console: " + consoleLine, 10, 30);
 		g.drawString("Version: " + getVersion(), 10, 50);
 		//Renders the three lines of text providing game information
