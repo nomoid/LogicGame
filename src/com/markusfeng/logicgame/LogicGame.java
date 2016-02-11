@@ -28,7 +28,6 @@ import org.newdawn.slick.Input;
 import org.newdawn.slick.SlickException;
 import org.newdawn.slick.SpriteSheet;
 import org.newdawn.slick.TrueTypeFont;
-import org.newdawn.slick.opengl.SlickCallable;
 
 import com.markusfeng.Shared.Version;
 import com.markusfeng.logicgame.multiplayer.Commands;
@@ -243,6 +242,8 @@ public class LogicGame extends BasicGame{
 	@Override
 	public void render(GameContainer gc, Graphics g) throws SlickException {
 		if(!initializationComplete){
+			renderString(g, "Logic Game", gc.getWidth() / 2, gc.getHeight() / 4);
+			renderString(g, "Version: " + getVersion(), gc.getWidth() / 2, gc.getHeight() / 4 + 20);
 			renderString(g, "Loading...", gc.getWidth() / 2, gc.getHeight() / 2);
 			return;
 		}
