@@ -265,7 +265,9 @@ public class LogicGame extends BasicGame{
 			n++;
 		}
 		//Renders the "reveal your own cards" button
-		CollisionRect revealButton = renderButton(g, revealing ? "Hide Your Own Cards" : "Reveal Your Own Cards", 
+		String ownership = currentTurn >= 0 ? "Your Own" : "All";
+		String showOrHide = revealing ? "Hide" : "Show";
+		CollisionRect revealButton = renderButton(g, showOrHide + " " + ownership + " Cards",
 				gc.getWidth() / 3, gc.getHeight() / 4, 200, 40, Color.green, Color.black);
 		if(reveal == null){
 			reveal = revealButton;
@@ -372,11 +374,11 @@ public class LogicGame extends BasicGame{
 			}
 		}
 		//Renders face down or face up card based on whether the face down variable is set to true
-		if(!faceUp[currentIndex] && (!revealing || !isOwn(currentIndex))){
-			g.drawImage(getBackFromSheet(Card.getColor(currentCard).equals("Red") ? 0 : 3), x, y);
+		if(faceUp[currentIndex] || (revealing && (isOwn(currentIndex) || currentTurn < 0))){
+			g.drawImage(getCardFromSheet(currentCard), x, y);
 		}
 		else{
-			g.drawImage(getCardFromSheet(currentCard), x, y);
+			g.drawImage(getBackFromSheet(Card.getColor(currentCard).equals("Red") ? 0 : 3), x, y);
 		}
 		//Resets the transform to the original
 		g.resetTransform();
@@ -819,6 +821,8 @@ public class LogicGame extends BasicGame{
 		//Resets the displays
 		tempDisplay = "";
 		winLoseDisplay = "";
+		//Resets revealing
+		revealing = false;
 		return "complete";
 	}
 
@@ -934,6 +938,8 @@ public class LogicGame extends BasicGame{
 					winLoseDisplay = getPlayerNameForNumber(currentTurn) + " wins!";
 					//Prevents game progress
 					currentTurn = -1;
+					//Sets mode to non-revealing
+					revealing = false;
 				}
 			}
 		}
@@ -944,8 +950,12 @@ public class LogicGame extends BasicGame{
 			}
 			//If claiming, loses the game
 			else if(currentAction == ACTION_CLAIMING){
+				//Display losing message
 				winLoseDisplay = getPlayerNameForNumber(currentTurn) + " loses!";
+				//Prevents game progress
 				currentTurn = -1;
+				//Sets mode to non-revealing
+				revealing = false;
 			}
 		}
 		return "complete";

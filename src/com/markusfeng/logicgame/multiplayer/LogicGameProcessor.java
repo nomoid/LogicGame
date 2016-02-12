@@ -19,9 +19,11 @@ import com.markusfeng.logicgame.LogicGame;
 public class LogicGameProcessor extends RemoteMethodGroupProcessor
 		implements SocketProcessorGenerator<LogicGameProcessor>{
 	
+	//The game instance that the processor handles
 	protected LogicGame game;
+	//The ids of the connected players
 	protected ArrayList<Long> players;
-	
+
 	public static LogicGameProcessor startServer(LogicGame game, int port, Set<Closeable> closeables)
 			throws IOException{
 		LogicGameProcessor mp = new LogicGameProcessor(game, true);
