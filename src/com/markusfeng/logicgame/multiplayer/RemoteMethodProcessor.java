@@ -17,13 +17,13 @@ import java.util.concurrent.Future;
 
 import com.markusfeng.SocketRelay.Compatibility.Function;
 
-public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
+public abstract class RemoteMethodProcessor extends GroupProcessor{
 	
 	private Map<String, RemoteMethod> methods;
 	private Map<Long, CompletableFuture<Map<Long, CompletableFuture<String>>>> invocations;
 	private Map<Long, Map<Long, CompletableFuture<String>>> invocationReturns;
 
-	public RemoteMethodGroupProcessor(boolean isServer) {
+	public RemoteMethodProcessor(boolean isServer) {
 		super(isServer);
 		methods = new HashMap<String, RemoteMethod>();
 		invocations = new HashMap<Long, CompletableFuture<Map<Long, CompletableFuture<String>>>>();

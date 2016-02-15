@@ -20,8 +20,8 @@ import com.markusfeng.SocketRelay.B.SocketProcessorGenerator;
 import com.markusfeng.SocketRelay.C.SocketHelper;
 import com.markusfeng.SocketRelay.Compatibility.Function;
 
-public class RemoteMethodMessageProcessor extends RemoteMethodGroupProcessor 
-		implements SocketProcessorGenerator<RemoteMethodGroupProcessor>{
+public class RemoteMethodMessageProcessor extends RemoteMethodProcessor 
+		implements SocketProcessorGenerator<RemoteMethodProcessor>{
 	
 	static final boolean VERBOSE = false;
 	
@@ -223,7 +223,7 @@ public class RemoteMethodMessageProcessor extends RemoteMethodGroupProcessor
 	}
 	
 	@Override
-	public RemoteMethodGroupProcessor get() {
+	public RemoteMethodProcessor get() {
 		return this;
 	}
 

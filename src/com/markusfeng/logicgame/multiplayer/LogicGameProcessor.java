@@ -16,7 +16,7 @@ import com.markusfeng.SocketRelay.B.SocketProcessorGenerator;
 import com.markusfeng.SocketRelay.C.SocketHelper;
 import com.markusfeng.logicgame.LogicGame;
 
-public class LogicGameProcessor extends RemoteMethodGroupProcessor
+public class LogicGameProcessor extends RemoteMethodProcessor
 		implements SocketProcessorGenerator<LogicGameProcessor>{
 	
 	//The game instance that the processor handles
