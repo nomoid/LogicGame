@@ -63,7 +63,7 @@ import com.markusfeng.modules.logging.CustomLevel;
  * 
  * @author Markus Feng
  */
-@Version(value = "0.0.0.3")
+@Version(value = "0.0.0.4")
 public class LogicGame extends BasicGame{
 	
 	//Default server port (random number)
