@@ -160,7 +160,11 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-							CompletableFuture<String> future = invocationReturns.get(invokeID).get(senderC);
+							CompletableFuture<String> future = invocationReturns.get(invokeID).remove(senderC);
+							if(invocationReturns.get(invokeID).isEmpty()){
+								invocationReturns.remove(invokeID);
+								invocations.remove(invokeID);
+							}
 							if(commandC.getArguments().get("accessdenied") != null){
 								future.completeExceptionally(new SecurityException("Illegal remove invocation"));
 							}
