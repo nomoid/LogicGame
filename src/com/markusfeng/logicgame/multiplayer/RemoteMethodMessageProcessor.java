@@ -10,6 +10,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import com.markusfeng.SocketRelay.A.SocketClient;
@@ -57,7 +58,7 @@ public class RemoteMethodMessageProcessor extends RemoteMethodGroupProcessor
 						/*for(Map.Entry<Long, CompletableFuture<String>> entry : map.entrySet()){
 							System.out.println("invocation returned: " + entry.getKey() + "," + entry.getValue().get());
 						}*/
-						CompletableFuture<Map<Long, Void>> completed = runAsynchronously(map, new Function<Map.Entry<Long, String>, Void>(){
+						CompletableFuture<Map<Long, Void>> completed = runAsynchronously(Executors.newCachedThreadPool(), map, new Function<Map.Entry<Long, String>, Void>(){
 
 							@Override
 							public Void apply(Map.Entry<Long, String> entry) {
@@ -169,14 +170,14 @@ public class RemoteMethodMessageProcessor extends RemoteMethodGroupProcessor
 			@Override
 			public String apply(Map<String, String> parameters) {
 				long randTime = random.nextInt(2000) + 2000;
-				System.out.println(id + ": ping recieved (" + randTime + "): " + parameters.get("pingmessage"));
+				System.out.println(getID() + ": ping recieved (" + randTime + "): " + parameters.get("pingmessage"));
 				try {
 					Thread.sleep(randTime);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				System.out.println(id + ": ping back (" + randTime + "): " + parameters.get("pingmessage"));
+				System.out.println(getID() + ": ping back (" + randTime + "): " + parameters.get("pingmessage"));
 				return parameters.get("pingmessage");
 			}
 			
@@ -186,7 +187,7 @@ public class RemoteMethodMessageProcessor extends RemoteMethodGroupProcessor
 	@Override
 	protected Map<String, String> handlerAdded(final Future<Long> addedID, SocketHandler<String> handler) {
 		if(VERBOSE){
-			tpe.execute(new Runnable(){
+			executor().execute(new Runnable(){
 				
 				@Override
 				public void run(){

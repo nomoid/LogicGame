@@ -17,13 +17,13 @@ import com.markusfeng.SocketRelay.C.SocketProcessorAbstract;
 
 public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	
-	protected Object assignmentLock = new Object();
-	protected Random random;
-	protected boolean isServer;
-	protected Map<Long, SocketHandler<String>> ids;
-	protected long serverID;
-	protected volatile long id;
-	protected volatile boolean assigned;
+	private Object assignmentLock = new Object();
+	private Random random;
+	private boolean server;
+	private Map<Long, SocketHandler<String>> ids;
+	private long serverID;
+	private volatile long id;
+	private volatile boolean assigned;
 	public static final Runnable EMPTY_RUNNABLE = new Runnable(){
 
 		@Override
@@ -34,11 +34,11 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	};
 	
 	public GroupProcessor(boolean isServer){
-		this.isServer = isServer;
+		this.server = isServer;
 		random = new Random();
 		
-		if(isServer){
-			id = random.nextLong();
+		if(isServer()){
+			id = getRandom().nextLong();
 			assigned = true;
 		}
 		ids = new HashMap<Long, SocketHandler<String>>();
@@ -47,14 +47,14 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	@Override
 	public void attachHandler(SocketHandler<String> handler){
 		super.attachHandler(handler);
-		if(isServer){
-			long randTmp = random.nextLong();
+		if(isServer()){
+			long randTmp = getRandom().nextLong();
 			//Disallow 0 as id or repeated ids
 			while(randTmp == 0 || ids.containsKey(randTmp)){
-				randTmp = random.nextLong();
+				randTmp = getRandom().nextLong();
 			}
 			final long rand = randTmp;
-			Map<String, String> map = handlerAdded(tpe.submit(new Callable<Long>(){
+			Map<String, String> map = handlerAdded(executor().submit(new Callable<Long>(){
 
 				@Override
 				public Long call() throws Exception {
@@ -75,7 +75,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 		}
 		else{
 			ids.put(0L, handler);
-			handlerAdded(tpe.submit(new Callable<Long>(){
+			handlerAdded(executor().submit(new Callable<Long>(){
 				
 				@Override
 				public Long call(){
@@ -90,7 +90,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	@Override
 	public void removeHandler(SocketHandler<String> handler){
 		super.removeHandler(handler);
-		if(isServer){
+		if(isServer()){
 			if(handler == null){
 				return;
 			}
@@ -123,7 +123,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	@Override
 	public void removeHandlers(Collection<SocketHandler<String>> handlers){
 		super.removeHandlers(handlers);
-		if(isServer){
+		if(isServer()){
 			Set<Long> toBeRemoved = new HashSet<Long>();
 			for(Map.Entry<Long, SocketHandler<String>> entry : ids.entrySet()){
 				if(handlers.contains(entry.getValue())){
@@ -194,7 +194,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	}
 	
 	protected boolean systemProcess(Command command){
-		if(isServer){
+		if(isServer()){
 			long sender;
 			try{
 				sender = Long.parseLong(command.getArguments().get("id"));
@@ -208,7 +208,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 				String[] recipientArray = recipients.split("/");
 				boolean forward = false;
 				for(String recipient : recipientArray){
-					if(recipient.equals(String.valueOf(id))){
+					if(recipient.equals(String.valueOf(getID()))){
 						forward = true;
 					}
 					else{
@@ -228,7 +228,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 				}
 			}
 			else if(!permission(sender, "serveronly") || !command.getArguments().containsKey("serveronly")){
-				for(Entry<Long, SocketHandler<String>> handler : ids.entrySet()){
+				for(Entry<Long, SocketHandler<String>> handler : getIDs().entrySet()){
 					String id = command.getArguments().get("id");
 					try {
 						if(id == null || handler.getKey() != Long.parseLong(id)){
@@ -292,7 +292,7 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 	}
 	
 	public boolean isServer(){
-		return isServer;
+		return server;
 	}
 	
 	public void waitForID(){
@@ -320,5 +320,12 @@ public abstract class GroupProcessor extends SocketProcessorAbstract<String>{
 			assignmentLock.notifyAll();
 		}
 	}
-
+	
+	public Map<Long, SocketHandler<String>> getIDs(){
+		return Collections.unmodifiableMap(ids);
+	}
+	
+	protected Random getRandom(){
+		return random;
+	}
 }

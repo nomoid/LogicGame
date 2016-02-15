@@ -138,7 +138,7 @@ public class LogicGameProcessor extends RemoteMethodGroupProcessor
 	protected Map<String, String> handlerAdded(Future<Long> addedID, SocketHandler<String> handler) {
 		//Send the cards in the logic game to all clients
 		HashMap<String, String> data = new HashMap<String, String>();
-		if(isServer){
+		if(isServer()){
 			data.put("gameversion", game.getVersion());
 			data.put("carddata", Commands.fromArray(game.getCards()));
 			data.put("twoplayermode", String.valueOf(game.isTwoPlayerMode()));

@@ -2,6 +2,7 @@ package com.markusfeng.logicgame.multiplayer;
 
 import java.io.IOException;
 import java.util.AbstractMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -12,16 +13,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import com.markusfeng.SocketRelay.Compatibility.Function;
 
 public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 	
-	protected Map<String, RemoteMethod> methods;
-	protected Map<Long, CompletableFuture<Map<Long, CompletableFuture<String>>>> invocations;
-	protected Map<Long, Map<Long, CompletableFuture<String>>> invocationReturns;
+	private Map<String, RemoteMethod> methods;
+	private Map<Long, CompletableFuture<Map<Long, CompletableFuture<String>>>> invocations;
+	private Map<Long, Map<Long, CompletableFuture<String>>> invocationReturns;
 
 	public RemoteMethodGroupProcessor(boolean isServer) {
 		super(isServer);
@@ -65,17 +65,17 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 		catch(NumberFormatException e){
 			e.printStackTrace();
 		}
-		if(isServer && !command.getName().equalsIgnoreCase("invokereturn")){
+		if(isServer() && !command.getName().equalsIgnoreCase("invokereturn")){
 			if(permission(sender, "invoke") && command.getName().equalsIgnoreCase("invoke")){
 				//Return the invocation data
 				Map<String, String> map = new HashMap<String, String>(command.getArguments());
 				map.put("targets", getInvocationTargetString(command));
-				if(sender == id){
+				if(sender == getID()){
 					invokeData(Commands.make("invokedata", map));
 				}
 				else{
 					try {
-						outputToHandler(ids.get(sender), Commands.make("invokedata", map), false);
+						outputToHandler(getIDs().get(sender), Commands.make("invokedata", map), false);
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -88,7 +88,7 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 			}
 		}
 		if(permission(sender, "invoke") && command.getName().equalsIgnoreCase("invoke")){
-			if(isServer && sender == id){
+			if(isServer() && sender == getID()){
 				return true;
 			}
 			String method = command.getArguments().get("methodname");
@@ -97,12 +97,12 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 				final Command commandC = command;
 				final long senderC = sender;
 				if(multiThread){
-					tpe.execute(new Runnable(){
+					executor().execute(new Runnable(){
 						public void run(){
 							Command c = applyInvoke(commandC);
 							if(c != null){
 								try {
-									outputToHandler(ids.get(senderC), c, false);
+									outputToHandler(getIDs().get(senderC), c, false);
 								} catch (IOException e) {
 									// TODO Auto-generated catch block
 									e.printStackTrace();
@@ -115,7 +115,7 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 					Command c = applyInvoke(command);
 					if(c != null){
 						try {
-							outputToHandler(ids.get(sender), c, false);
+							outputToHandler(getIDs().get(sender), c, false);
 						} catch (IOException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
@@ -126,10 +126,10 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 			else{
 				Map<String, String> data = new HashMap<String, String>(command.getArguments());
 				data.put("callerid", command.getArguments().get("id"));
-				data.put("id", String.valueOf(id));
+				data.put("id", String.valueOf(getID()));
 				data.put("accessdenied", "");
 				try {
-					outputToHandler(ids.get(sender), Commands.make("invokereturn", data), false);
+					outputToHandler(getIDs().get(sender), Commands.make("invokereturn", data), false);
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -142,10 +142,10 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 		else if(permission(sender, "invokereturn") && command.getName().equalsIgnoreCase("invokereturn")){
 			try{
 				long callerID = Long.parseLong(command.getArguments().get("callerid"));
-				if(callerID == id){
+				if(callerID == getID()){
 					final long senderC = sender;
 					final Command commandC = command;
-					tpe.execute(new Runnable(){
+					executor().execute(new Runnable(){
 
 						@Override
 						public void run() {
@@ -179,10 +179,10 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 						
 					});
 				}
-				else if(isServer){
+				else if(isServer()){
 					//Redirect
 					try {
-						outputToHandler(ids.get(callerID), command, false);
+						outputToHandler(getIDs().get(callerID), command, false);
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -196,7 +196,7 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 				e.printStackTrace();
 			}
 		}
-		if(isServer){
+		if(isServer()){
 			return true;
 		}
 		else{
@@ -209,8 +209,8 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 		String recipients = command.getArguments().get("recipients");
 		if(recipients == null){
 			boolean fail = false;
-			invocationTargets.add(id);
-			invocationTargets.addAll(ids.keySet());
+			invocationTargets.add(getID());
+			invocationTargets.addAll(getIDs().keySet());
 			try{
 				invocationTargets.add(Long.parseLong(command.getArguments().get("id")));
 			}
@@ -270,13 +270,13 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 		catch(Exception e){
 			Map<String, String> data = new HashMap<String, String>(command.getArguments());
 			data.put("callerid", String.valueOf(sender));
-			data.put("id", String.valueOf(id));
+			data.put("id", String.valueOf(getID()));
 			data.put("exceptionthrown", e.toString());
 			return Commands.make("invokereturn", data);
 		}
 		Map<String, String> data = new HashMap<String, String>(command.getArguments());
 		data.put("callerid", String.valueOf(sender));
-		data.put("id", String.valueOf(id));
+		data.put("id", String.valueOf(getID()));
 		if(returnValue != null){
 			data.put("return", returnValue);
 		}
@@ -297,13 +297,13 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 		final Map<String, String> data = new HashMap<String, String>(args);
 		final CompletableFuture<Map<Long, CompletableFuture<String>>> future = 
 				new CompletableFuture<Map<Long, CompletableFuture<String>>>();
-		tpe.execute(new Runnable(){
+		executor().execute(new Runnable(){
 			public void run(){
 				try {
 					//Wait until invoke data comes back
 					future.get();
 					//Local copy of invocation
-					data.put("id", String.valueOf(id));
+					data.put("id", String.valueOf(getID()));
 					Command c = applyInvoke(Commands.make("invoke", data));
 					if(c != null){
 						systemProcess(c);
@@ -317,22 +317,22 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 				}
 			}
 		});
-		long invokeID = random.nextLong();
+		long invokeID = getRandom().nextLong();
 		while(invocations.containsKey(invokeID)){
-			invokeID = random.nextLong();
+			invokeID = getRandom().nextLong();
 		}
 		data.put("methodname", name);
 		data.put("invokeid", String.valueOf(invokeID));
 		invocations.put(invokeID, future);
-		if(isServer){
+		if(isServer()){
 			//Send data to everyone
-			data.put("id", String.valueOf(id));
+			data.put("id", String.valueOf(getID()));
 			systemProcess(Commands.make("invoke", data));
 		}
 		else{
 			//Send data to server
 			try {
-				outputToHandler(ids.get(serverID), Commands.make("invoke", data), false);
+				outputToHandler(getIDs().get(getServerID()), Commands.make("invoke", data), false);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -348,9 +348,8 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 		return true;
 	}
 	
-	public static <T, S, R> CompletableFuture<Map<S, R>> runAsynchronously(Map<S, CompletableFuture<T>> map, final Function<Map.Entry<S, T>, R> function){
+	public static <T, S, R> CompletableFuture<Map<S, R>> runAsynchronously(final ExecutorService exec, Map<S, CompletableFuture<T>> map, final Function<Map.Entry<S, T>, R> function){
 		final CompletableFuture<Map<S, R>> future = new CompletableFuture<Map<S, R>>();
-		final ExecutorService exec = Executors.newCachedThreadPool();
 		final Set<Callable<Map.Entry<S, R>>> callableSet = new HashSet<Callable<Map.Entry<S, R>>>();
 		for(final Map.Entry<S, CompletableFuture<T>> entry : map.entrySet()){
 			callableSet.add(new Callable<Map.Entry<S, R>>(){
@@ -394,5 +393,17 @@ public abstract class RemoteMethodGroupProcessor extends GroupProcessor{
 	
 	protected void addMethod(String name, RemoteMethod remoteMethod){
 		methods.put(name, remoteMethod);
+	}
+	
+	protected Map<Long, CompletableFuture<Map<Long, CompletableFuture<String>>>> getInvocations(){
+		return Collections.unmodifiableMap(invocations);
+	}
+	
+	protected Map<Long, Map<Long, CompletableFuture<String>>> getInvocationReturns(){
+		return Collections.unmodifiableMap(invocationReturns);
+	}
+	
+	protected Map<String, RemoteMethod> getRemoteMethods(){
+		return Collections.unmodifiableMap(methods);
 	}
 }

@@ -147,7 +147,7 @@ public class MessagePassingProcessor extends GroupProcessor implements SocketPro
 
 	@Override
 	protected Map<String, String> handlerAdded(final Future<Long> addedID, SocketHandler<String> handler) {
-		tpe.execute(new Runnable(){
+		executor().execute(new Runnable(){
 			
 			@Override
 			public void run(){
