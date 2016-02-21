@@ -21,13 +21,11 @@ public abstract class RemoteMethodProcessor extends GroupProcessor{
 	
 	private Map<String, RemoteMethod> methods;
 	private Map<Long, CompletableFuture<Map<Long, CompletableFuture<String>>>> invocations;
-	private Map<Long, Map<Long, CompletableFuture<String>>> invocationReturns;
 
 	public RemoteMethodProcessor(boolean isServer) {
 		super(isServer);
 		methods = new HashMap<String, RemoteMethod>();
 		invocations = new HashMap<Long, CompletableFuture<Map<Long, CompletableFuture<String>>>>();
-		invocationReturns = new HashMap<Long, Map<Long, CompletableFuture<String>>>();
 	}
 
 	/*
@@ -152,28 +150,27 @@ public abstract class RemoteMethodProcessor extends GroupProcessor{
 							long invokeID = Long.parseLong(commandC.getArguments().get("invokeid"));
 							try {
 								//Wait until invokedata comes back
-								invocations.get(invokeID).get();
+								Map<Long, CompletableFuture<String>> returns = invocations.get(invokeID).get();
+								CompletableFuture<String> future = returns.remove(senderC);
+								if(returns.isEmpty()){
+									invocations.remove(invokeID);
+								}
+								if(commandC.getArguments().get("accessdenied") != null){
+									future.completeExceptionally(new SecurityException("Illegal remove invocation"));
+								}
+								else if(commandC.getArguments().get("exceptionthrown") != null){
+									future.completeExceptionally(new CompletionException(commandC.getArguments()
+											.get("exceptionthrown"), null));
+								}
+								else{
+									future.complete(commandC.getArguments().get("return"));
+								}
 							} catch (InterruptedException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							} catch (ExecutionException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
-							}
-							CompletableFuture<String> future = invocationReturns.get(invokeID).remove(senderC);
-							if(invocationReturns.get(invokeID).isEmpty()){
-								invocationReturns.remove(invokeID);
-								invocations.remove(invokeID);
-							}
-							if(commandC.getArguments().get("accessdenied") != null){
-								future.completeExceptionally(new SecurityException("Illegal remove invocation"));
-							}
-							else if(commandC.getArguments().get("exceptionthrown") != null){
-								future.completeExceptionally(new CompletionException(commandC.getArguments()
-										.get("exceptionthrown"), null));
-							}
-							else{
-								future.complete(commandC.getArguments().get("return"));
 							}
 						}
 						
@@ -242,7 +239,6 @@ public abstract class RemoteMethodProcessor extends GroupProcessor{
 		}
 		try{
 			long invokeID = Long.parseLong(command.getArguments().get("invokeid"));
-			invocationReturns.put(invokeID, returnMap);
 			CompletableFuture<Map<Long, CompletableFuture<String>>> future = 
 					invocations.get(invokeID);
 			future.complete(returnMap);
@@ -289,7 +285,7 @@ public abstract class RemoteMethodProcessor extends GroupProcessor{
 	/*
 	 * Makes a CompletableFuture of Long -> CompletableFuture
 	 * As the server returns the "got invocation call", the list of longs that will be invoked comes back
-	 * This makes a mapping that is completed; The mapping is put into invocationReturns
+	 * This makes a mapping that is completed; 
 	 * As each invocation comes back, each CompletableFuture is completed individually
 	 */
 	public Future<Map<Long, CompletableFuture<String>>> invokeMethod(String name, Map<String, String> args){
@@ -397,10 +393,6 @@ public abstract class RemoteMethodProcessor extends GroupProcessor{
 	
 	protected Map<Long, CompletableFuture<Map<Long, CompletableFuture<String>>>> getInvocations(){
 		return Collections.unmodifiableMap(invocations);
-	}
-	
-	protected Map<Long, Map<Long, CompletableFuture<String>>> getInvocationReturns(){
-		return Collections.unmodifiableMap(invocationReturns);
 	}
 	
 	protected Map<String, RemoteMethod> getRemoteMethods(){
