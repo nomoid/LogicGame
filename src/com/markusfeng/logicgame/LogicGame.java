@@ -497,6 +497,10 @@ public class LogicGame extends BasicGame{
 	//Called when a mounse button is clicked
 	@Override
 	public void mouseClicked(int button, int x, int y, int buttonCount) {
+		//Do not handle click events before initialization is complete
+		if(!initializationComplete){
+			return;
+		}
 		//Go through the card collision rectangles
 		for(int i = 0; i < rects.length; i++){
 			//If the collision rectangle collides with the clicked point
@@ -991,6 +995,10 @@ public class LogicGame extends BasicGame{
 	//Used for the console
 	@Override
 	public void keyPressed(int key, char c){
+		//Do not handle key events before initialization is complete
+		if(!initializationComplete){
+			return;
+		}
 		if(key == Input.KEY_DELETE || key == Input.KEY_BACK){
 			if(consoleLine.length() > 0){
 				consoleLine = consoleLine.substring(0, consoleLine.length() - 1);
