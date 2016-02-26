@@ -29,9 +29,8 @@ import org.newdawn.slick.SlickException;
 import org.newdawn.slick.SpriteSheet;
 import org.newdawn.slick.TrueTypeFont;
 
+import com.markusfeng.Shared.Commands;
 import com.markusfeng.Shared.Version;
-import com.markusfeng.logicgame.multiplayer.Commands;
-import com.markusfeng.logicgame.multiplayer.LogicGameProcessor;
 import com.markusfeng.modules.logging.AbstractConsoleFrame;
 import com.markusfeng.modules.logging.CustomLevel;
 

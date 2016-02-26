@@ -1,4 +1,4 @@
-package com.markusfeng.logicgame.multiplayer;
+package com.markusfeng.logicgame;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -9,12 +9,15 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import com.markusfeng.Shared.Command;
+import com.markusfeng.Shared.Commands;
 import com.markusfeng.SocketRelay.A.SocketClient;
 import com.markusfeng.SocketRelay.A.SocketHandler;
 import com.markusfeng.SocketRelay.A.SocketServer;
 import com.markusfeng.SocketRelay.B.SocketProcessorGenerator;
 import com.markusfeng.SocketRelay.C.SocketHelper;
-import com.markusfeng.logicgame.LogicGame;
+import com.markusfeng.SocketRelay.Remote.RemoteMethod;
+import com.markusfeng.SocketRelay.Remote.RemoteMethodProcessor;
 
 public class LogicGameProcessor extends RemoteMethodProcessor
 		implements SocketProcessorGenerator<LogicGameProcessor>{
